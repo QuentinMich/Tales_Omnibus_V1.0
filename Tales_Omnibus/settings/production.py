@@ -51,6 +51,15 @@ try:
 except ImportError:
     pass
 
+# Pas encore de serveur d'envoi d'e-mails : local.py peut choisir d'écrire les
+# e-mails dans le journal (backend « console »). Django 6.1 le refuse alors en
+# production (mail.E001). Ici c'est VOULU et sans perte : les messages des
+# formulaires restent lisibles dans l'admin (Messages, Messages aux héros).
+# Dès qu'un vrai serveur SMTP est configuré dans local.py, l'exception disparaît.
+_backend_mail = globals().get("MAILERS", {}).get("default", {}).get("BACKEND", "")
+if _backend_mail.endswith("console.EmailBackend"):
+    SILENCED_SYSTEM_CHECKS = SILENCED_SYSTEM_CHECKS + ["mail.E001"]
+
 # Une clé secrète absente ou de développement en ligne = sessions et liens
 # de réinitialisation de mot de passe falsifiables. On refuse de démarrer.
 if not globals().get("SECRET_KEY") or SECRET_KEY.startswith("django-insecure"):  # noqa: F405
