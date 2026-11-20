@@ -1,0 +1,41 @@
+{% load wagtailcore_tags %}
+{# Le bulletin de l'accueil (pages.Annonce, home/models.py get_context).          #}
+{# La date est TOUJOURS écrite en clair ; le compte à rebours (js) n'est qu'un    #}
+{# plus : sans JavaScript, la ligne reste cachée (attribut hidden) et rien ne manque. #}
+<section class="home-annonces" aria-label="Annonces">
+    {% if prochaine_session %}
+        {% with s=prochaine_session %}
+            <article class="panel panel--rounded panel--strong annonce annonce--session">
+                <p class="annonce-type">Prochaine session</p>
+                <h2 class="panel-title annonce-titre">{{ s.titre }}</h2>
+                <p class="annonce-quand">
+                    <time datetime="{{ s.date_session|date:'c' }}">{{ s.date_session|date:"l j F \à H\hi" }}</time>{% if s.ou_la_suivre %} · {{ s.ou_la_suivre }}{% endif %}
+                </p>
+                <p class="compte-a-rebours" hidden
+                   data-compte-a-rebours="{{ s.date_session|date:'c' }}"
+                   data-fin="{{ s.fin_de_session|date:'c' }}"></p>
+                {% if s.texte %}<div class="richtext annonce-texte">{{ s.texte|richtext }}</div>{% endif %}
+                {% if s.lien %}<a href="{{ s.lien }}" class="btn" rel="noopener">{{ s.ou_la_suivre|default:"Y aller" }}</a>{% endif %}
+            </article>
+        {% endwith %}
+    {% endif %}
+
+    {% if annonces %}
+        <ul class="annonces-liste">
+            {% for a in annonces %}
+                <li class="panel panel--rounded annonce annonce--{{ a.type_annonce }}{% if a.epinglee %} is-epinglee{% endif %}">
+                    <p class="annonce-type">
+                        {{ a.get_type_annonce_display }}{% if a.epinglee %} · <span class="fiche-epingle">Épinglée</span>{% endif %}
+                        · <time datetime="{{ a.publiee_le|date:'c' }}">{{ a.publiee_le|date:"j F Y" }}</time>
+                    </p>
+                    <h2 class="annonce-titre">{{ a.titre }}</h2>
+                    {% if a.est_une_session %}
+                        <p class="annonce-quand"><time datetime="{{ a.date_session|date:'c' }}">{{ a.date_session|date:"l j F \à H\hi" }}</time>{% if a.ou_la_suivre %} · {{ a.ou_la_suivre }}{% endif %}</p>
+                    {% endif %}
+                    {% if a.texte %}<div class="richtext annonce-texte">{{ a.texte|richtext }}</div>{% endif %}
+                    {% if a.lien %}<a href="{{ a.lien }}" class="btn-link" rel="noopener">En savoir plus</a>{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>

@@ -417,7 +417,7 @@ class MenuAdminTests(TestCase):
         menu = dict(self.menu_pour(admin))
         # « Bien démarrer » en tête : la première chose à faire sur un site neuf
         self.assertEqual(list(menu)[:4], ["Bien démarrer", "Plan du site", "Univers", "Dossiers"])
-        self.assertEqual(menu["Organisation"], ["Catégories", "Mots-clés", "Familles de tags", "Prestations"])
+        self.assertEqual(menu["Organisation"], ["Annonces", "Catégories", "Mots-clés", "Familles de tags", "Prestations"])
         self.assertEqual(menu["Comptes"], ["Utilisateurs", "Groupes"])
         self.assertEqual(menu["Paramètres avancés"], ["Sites", "Redirections", "Workflows", "Tâches de workflow"])
         for libelle in ("Images", "Documents", "Messages", "Paramètres du site", "Entretien du site", "Rapports"):

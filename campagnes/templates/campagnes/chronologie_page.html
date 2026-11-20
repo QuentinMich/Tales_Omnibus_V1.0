@@ -13,6 +13,12 @@
         {% endif %}
     </header>
 
+    {# L'accroche AVANT la frise, sans titre « Accroche » (mot de l'admin, pas du #}
+    {# visiteur) : comme sur la page Carte.                                        #}
+    {% if page.intro %}
+        <div class="chrono-intro richtext">{{ page.intro|richtext }}</div>
+    {% endif %}
+
     {# --- FRISE : une ligne par événement, image à gauche / à droite en alternance --- #}
     {% if evenements %}
         <ol class="timeline">
@@ -39,13 +45,6 @@
         </ol>
     {% else %}
         <p class="no-data">Aucun événement n'est encore enregistré dans cette chronologie.</p>
-    {% endif %}
-
-    {% if page.intro %}
-        <section class="panel chrono-intro">
-            <h2 class="panel-title">Accroche</h2>
-            <div class="richtext">{{ page.intro|richtext }}</div>
-        </section>
     {% endif %}
 
     {% if page.body %}

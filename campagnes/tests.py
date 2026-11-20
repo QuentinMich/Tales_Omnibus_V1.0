@@ -595,6 +595,15 @@ class ComptesJoueursTests(CampagneTreeMixin, TestCase):
         self.assertFalse(type(self.zoe).objects.get(pk=self.zoe.pk).has_perm("wagtailadmin.access_admin"))
 
 
+class PageChronologieTests(CampagneTreeMixin, TestCase):
+    def test_l_accroche_est_avant_la_frise_sans_titre(self):
+        chrono = self.campagne.add_child(instance=ChronologiePage(
+            title="Les Âges", intro="<p>Tout commence par un brouillard.</p>"))
+        html = self.client.get(chrono.url).content.decode()
+        self.assertIn('class="chrono-intro richtext"', html)
+        self.assertNotIn(">Accroche<", html)  # mot de l'admin, pas du visiteur
+
+
 class PageCarteTests(CampagneTreeMixin, TestCase):
     def test_l_accroche_est_avant_la_carte(self):
         from campagnes.models import CartePage

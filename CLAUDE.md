@@ -77,6 +77,19 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
 - **Prestations** : snippet `pages.Prestation` (menu Fragments), affiché en
   détail sur la page Contact et en version courte dans la box Contact de
   l'accueil (`pages/includes/prestations.html`).
+- **Annonces** (snippet `pages.Annonce`, Organisation > Annonces, migration
+  pages 0011) : le bulletin de l'accueil, AU-DESSUS du lecteur de live
+  (`pages/includes/annonces.html`). Types : prochaine session / nouveauté /
+  info. `Annonce.du_moment()` : la session la plus PROCHE en grand (panneau
+  fort + compte à rebours), les autres en 3 cartes max (épinglées d'abord).
+  RETRAIT AUTOMATIQUE (`retiree_le`) : « Retirer le » s'il est rempli, sinon
+  session = début + 5 h (`DUREE_D_UNE_SESSION`, « En ce moment ! » pendant),
+  autres = 30 jours (`DUREE_PAR_DEFAUT`), épinglée = jamais. « Afficher à
+  partir du » futur = annonce programmée. Aucune annonce = aucun cadre.
+  Compte à rebours : `static/js/compte_a_rebours.js` (dates ISO avec fuseau
+  en `data-`, mise à jour toutes les 30 s, `hidden` sans JS : la date en
+  clair suffit). La démo crée une session à J+3 21 h (`timezone.localtime`,
+  sinon 21 h UTC) et une nouveauté, retirées avec elle.
 - **Lien retour** vers la page parente sur toutes les pages sauf l'accueil :
   tag `{% back_link %}`, libellés fixes pour les rubriques (« aux campagnes »).
 - **Formulaire de contact des héros** (`HeroPage.serve`) : Post/Redirect/Get,

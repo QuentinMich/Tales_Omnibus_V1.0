@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.core import mail
 from django.test import TestCase
 from home.models import HomePage
@@ -107,3 +109,66 @@ class MentionsLegalesTests(TestCase):
     def test_une_seule_page_de_mentions(self):
         from pages.models import MentionsLegalesPage
         self.assertFalse(MentionsLegalesPage.can_create_at(self.home))
+
+
+class AnnoncesTests(TestCase):
+    """Le bulletin de l'accueil : prochaine session (compte à rebours) et annonces."""
+
+    def setUp(self):
+        from django.utils import timezone
+        self.maintenant = timezone.now()
+
+    def annonce(self, **champs):
+        from pages.models import Annonce
+        champs.setdefault('titre', "Annonce")
+        champs.setdefault('publiee_le', self.maintenant)
+        return Annonce.objects.create(**champs)
+
+    def du_moment(self, decalage=None):
+        from pages.models import Annonce
+        return Annonce.du_moment(self.maintenant + (decalage or timedelta()))
+
+    def test_la_session_la_plus_proche_est_mise_en_avant(self):
+        loin = self.annonce(type_annonce='session', titre="Session 14", date_session=self.maintenant + timedelta(days=9))
+        proche = self.annonce(type_annonce='session', titre="Session 13", date_session=self.maintenant + timedelta(days=2))
+        prochaine, autres = self.du_moment()
+        self.assertEqual(prochaine, proche)
+        self.assertEqual(autres, [loin])  # l'autre session reste en petite carte
+
+    def test_une_session_reste_pendant_qu_elle_se_joue_puis_disparait(self):
+        self.annonce(type_annonce='session', date_session=self.maintenant + timedelta(hours=1))
+        self.assertIsNotNone(self.du_moment(timedelta(hours=3))[0])   # en cours (« En ce moment ! »)
+        self.assertIsNone(self.du_moment(timedelta(hours=7))[0])      # finie : retirée toute seule
+
+    def test_une_nouveaute_se_retire_au_bout_de_30_jours_sauf_si_epinglee(self):
+        self.annonce(titre="Nouvelle carte")
+        self.annonce(titre="Règles de la table", epinglee=True)
+        self.assertEqual([a.titre for a in self.du_moment()[1]], ["Règles de la table", "Nouvelle carte"])
+        self.assertEqual([a.titre for a in self.du_moment(timedelta(days=31))[1]], ["Règles de la table"])
+
+    def test_une_annonce_programmee_attend_sa_date(self):
+        self.annonce(titre="Surprise", publiee_le=self.maintenant + timedelta(days=1))
+        self.assertEqual(self.du_moment()[1], [])
+        self.assertEqual(len(self.du_moment(timedelta(days=2))[1]), 1)
+
+    def test_retirer_le_passe_avant_tout(self):
+        self.annonce(titre="Courte", epinglee=True, fin_d_affichage=self.maintenant + timedelta(days=1))
+        self.assertEqual(self.du_moment(timedelta(days=2))[1], [])
+
+    def test_une_session_sans_date_est_refusee(self):
+        from django.core.exceptions import ValidationError
+        from pages.models import Annonce
+        with self.assertRaises(ValidationError):
+            Annonce(titre="Session ?", type_annonce='session').full_clean()
+
+    def test_sur_l_accueil(self):
+        from home.models import HomePage
+        accueil = HomePage.objects.first()
+        self.assertNotContains(self.client.get(accueil.url), "home-annonces")  # rien : pas de cadre vide
+        self.annonce(type_annonce='session', titre="L'assaut", date_session=self.maintenant + timedelta(days=3),
+                     ou_la_suivre="En direct sur Twitch")
+        html = self.client.get(accueil.url).content.decode()
+        self.assertIn("L&#x27;assaut", html)
+        self.assertIn("data-compte-a-rebours=", html)
+        self.assertIn("compte_a_rebours.js", html)
+        self.assertIn("En direct sur Twitch", html)

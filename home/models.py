@@ -6,7 +6,7 @@ from wagtail.models import Page
 
 from campagnes.models import CampagnePage
 from core.blocks import StreamPlayerBlock
-from pages.models import Prestation, UniversPage
+from pages.models import Annonce, Prestation, UniversPage
 
 
 class HomePage(Page):
@@ -79,4 +79,7 @@ class HomePage(Page):
         ]
         # Les prestations (snippets) s'affichent dans la box Contact
         context['prestations'] = Prestation.objects.all()
+        # Le bulletin au-dessus du live : la prochaine session + les annonces
+        # du moment (celles qui ont expiré ne sont déjà plus là)
+        context['prochaine_session'], context['annonces'] = Annonce.du_moment()
         return context

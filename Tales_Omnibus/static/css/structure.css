@@ -1544,7 +1544,9 @@ figure {
 }
 
 /* L'accroche, sous le titre : une introduction, comme un chapeau d'article */
-.carte-intro {
+/* L'accroche des pages Carte et Chronologie : un chapeau, sans titre */
+.carte-intro,
+.chrono-intro {
     max-width: 48rem;
     margin-block: var(--space-md) var(--space-lg);
     color: var(--color-text-muted);
@@ -2541,6 +2543,89 @@ html:has(.template-home) {
         justify-content: center;
     }
 
+}
+
+/* ==========================================================================
+   ANNONCES : le bulletin de l'accueil (pages.Annonce), au-dessus du live
+   La prochaine session en grand (compte à rebours), les autres en cartes.
+   Les thèmes habillent déjà .panel : ici, seulement la mise en page.
+   ========================================================================== */
+.home-annonces {
+    display: grid;
+    gap: var(--space-md);
+    margin-block: var(--space-lg);
+}
+
+.annonce > :first-child { margin-top: 0; }
+.annonce > :last-child { margin-bottom: 0; }
+
+.annonce-type {
+    margin: 0 0 var(--space-xs, 0.25rem);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.annonce-titre {
+    margin: 0 0 var(--space-xs, 0.25rem);
+    font-size: 1.15rem;
+}
+
+.annonce--session .annonce-titre {
+    font-size: clamp(1.3rem, 1rem + 1.5vw, 1.8rem);
+}
+
+.annonce-quand {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Le compte à rebours : grand, dans la couleur de surlignage du thème */
+.compte-a-rebours {
+    margin: var(--space-sm, 0.5rem) 0;
+    font-family: var(--font-title);
+    font-size: clamp(1.5rem, 1.1rem + 2vw, 2.4rem);
+    line-height: 1.1;
+    color: var(--color-highlight);
+}
+
+.compte-a-rebours.is-live::before {
+    content: "";
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    margin-right: 0.35em;
+    vertical-align: middle;
+    border-radius: 50%;
+    background: currentColor;
+    animation: annonce-en-direct 1.4s ease-in-out infinite;  /* coupée par reduced-motion */
+}
+
+@keyframes annonce-en-direct {
+    50% { opacity: 0.25; }
+}
+
+.annonce-texte {
+    margin-top: var(--space-sm, 0.5rem);
+}
+
+.annonce--session .btn {
+    margin-top: var(--space-sm, 0.5rem);
+}
+
+/* Les autres annonces : 1 à 3 cartes côte à côte, empilées sur téléphone */
+.annonces-liste {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-md);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.annonces-liste .annonce {
+    margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

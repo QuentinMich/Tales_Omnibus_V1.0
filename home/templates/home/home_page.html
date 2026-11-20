@@ -25,10 +25,17 @@
 
 {% block extra_js %}
     <script src="{% static 'js/ecran_titre.js' %}"></script>
+    {% if prochaine_session %}<script src="{% static 'js/compte_a_rebours.js' %}"></script>{% endif %}
 {% endblock %}
 
 {% block content %}
 <main class="container page-home" id="contenu">
+
+    {# --- 1 bis. ANNONCES : prochaine session (compte à rebours) + nouveautés --- #}
+    {#     Rien du tout s'il n'y a aucune annonce en cours : pas de cadre vide.  #}
+    {% if prochaine_session or annonces %}
+        {% include "pages/includes/annonces.html" %}
+    {% endif %}
 
     {# --- 2. LIVE TWITCH / YOUTUBE --- #}
     {% if page.stream_player %}

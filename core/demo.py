@@ -24,11 +24,13 @@ de démo portent un tag (TAG_IMAGES) : on les retrouve et on les retire.
 Les catégories et les dossiers, eux, sont conservés : ce sont des
 rangements réutilisables.
 """
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.utils import timezone
 
 from core.slugs import slug_lisible
 from taggit.models import Tag
@@ -40,6 +42,7 @@ from campagnes.models import (
     Apparition, CampagnePage, CampagnesIndexPage, CartePage, ChronologiePage, EvenementPage, HeroPage, LieuPage,
 )
 from core.models import Categorie
+from pages.models import Annonce
 from encyclopedie.models import EncyclopedieIndexPage, FamilleDeTags, LorePage, PresenceEnCampagne
 
 
@@ -48,6 +51,15 @@ class DemoImpossible(Exception):
 
 
 CAMPAGNE = "Les Brumes d'Ardenn"
+
+# --- Le bulletin de l'accueil : une session dans 3 jours (compte à rebours) et
+#     une nouveauté. Dates RELATIVES : la démo est toujours « à jour ».
+ANNONCES = [
+    ('session', "Session 13 : l'assaut de Fort-Sombre",
+     "<p>Le groupe atteint enfin les murailles. Le Corbeau, lui, les attend.</p>", 3, "En direct sur Twitch"),
+    ('nouveaute', "La carte du Val Gris est en ligne",
+     "<p>Toutes les régions explorées jusqu'ici, et un royaume en rouge sang.</p>", None, ""),
+]
 
 # --- Une aide de jeu (document à télécharger), rangée dans « Aide de jeu » ---
 AIDE_DE_JEU = "Lettre du messager"
@@ -527,6 +539,16 @@ def _creer(index, encyclopedie):
                          ornement=("lettrine", "marge", "cadre")[n % 3]),
         ), tags, cat)
 
+    # Les annonces de l'accueil (retirées avec la démo, par leur titre)
+    # localtime : « 21 h » à l'heure de Paris (TIME_ZONE), pas à l'heure UTC
+    maintenant = timezone.localtime()
+    for type_annonce, titre, texte, dans_jours, ou in ANNONCES:
+        session = None
+        if dans_jours:
+            session = (maintenant + timedelta(days=dans_jours)).replace(hour=21, minute=0, second=0, microsecond=0)
+        Annonce.objects.create(type_annonce=type_annonce, titre=titre, texte=texte,
+                               date_session=session, ou_la_suivre=ou)
+
     # La campagne et ses enfants
     # L'aide de jeu : un vrai fichier dans la bibliothèque « Documents »
     lettre = get_document_model()(title=AIDE_DE_JEU, collection=dossier("Aide de jeu"))
@@ -641,6 +663,7 @@ def supprimer_demo():
         FamilleDeTags.objects.filter(nom__in=FAMILLES).delete()
         # Wagtail efface aussi le fichier du disque quand on supprime le document / l'image
         get_document_model().objects.filter(title=AIDE_DE_JEU).delete()
+        Annonce.objects.filter(titre__in=[titre for _, titre, *_ in ANNONCES]).delete()
         images = list(Image.objects.filter(tags__name=TAG_IMAGES))
         for image in images:
             image.delete()

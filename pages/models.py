@@ -1,4 +1,8 @@
+from datetime import timedelta
+
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from modelcluster.fields import ParentalKey
 from wagtail.models import Page, Site
 from wagtail.fields import RichTextField, StreamField
@@ -250,3 +254,117 @@ class Prestation(models.Model):
 
     def __str__(self):
         return self.titre
+
+
+# 4. ANNONCES : le « bulletin » de l'accueil, au-dessus du lecteur de live.
+#    La prochaine session (avec compte à rebours) et les nouveautés du MJ.
+#    Un FRAGMENT et pas une page : une annonce n'a pas besoin de sa propre
+#    adresse, le MJ l'écrit en 30 secondes depuis « Organisation ».
+#    Elles se RETIRENT TOUTES SEULES : une « prochaine session » restée en
+#    ligne trois semaines après fait un site abandonné, et un MJ qui ne code
+#    pas oubliera de faire le ménage.
+@register_snippet
+class Annonce(models.Model):
+    SESSION, NOUVEAUTE, INFO = 'session', 'nouveaute', 'info'
+    TYPES = [
+        (SESSION, "Prochaine session"),
+        (NOUVEAUTE, "Nouveauté"),
+        (INFO, "Information"),
+    ]
+    # Une session reste affichée PENDANT qu'elle se joue (« En ce moment ! »)
+    DUREE_D_UNE_SESSION = timedelta(hours=5)
+    # Une nouveauté ou une info non épinglée disparaît au bout d'un mois
+    DUREE_PAR_DEFAUT = timedelta(days=30)
+
+    type_annonce = models.CharField(max_length=20, choices=TYPES, default=NOUVEAUTE,
+                                    verbose_name="Type d'annonce")
+    titre = models.CharField(max_length=120, verbose_name="Titre",
+                             help_text="Ex. : « Session 12 : l'assaut de Fort-Sombre ».")
+    texte = RichTextField(blank=True, features=['bold', 'italic', 'link'], verbose_name="Texte")
+    date_session = models.DateTimeField(
+        null=True, blank=True, verbose_name="Date et heure de la session",
+        help_text="Pour une « Prochaine session » : sert au compte à rebours de l'accueil.",
+    )
+    ou_la_suivre = models.CharField(
+        max_length=100, blank=True, verbose_name="Où la suivre",
+        help_text="Ex. : « En direct sur Twitch », « Sur le Discord ».",
+    )
+    lien = models.URLField(blank=True, verbose_name="Lien", help_text="Un bouton vers ce lien (chaîne, Discord…).")
+    publiee_le = models.DateTimeField(
+        default=timezone.now, verbose_name="Afficher à partir du",
+        help_text="Une date future : l'annonce attend ce moment pour apparaître.",
+    )
+    fin_d_affichage = models.DateTimeField(
+        null=True, blank=True, verbose_name="Retirer le",
+        help_text="Vide : retrait AUTOMATIQUE (après la session ; au bout de 30 jours pour les autres).",
+    )
+    epinglee = models.BooleanField(
+        default=False, verbose_name="Épinglée",
+        help_text="Passe en premier et ne se retire pas toute seule (sauf date « Retirer le »).",
+    )
+
+    panels = [
+        FieldPanel('type_annonce'),
+        FieldPanel('titre'),
+        FieldPanel('texte'),
+        MultiFieldPanel([
+            FieldPanel('date_session'),
+            FieldPanel('ou_la_suivre'),
+        ], heading="Pour une prochaine session"),
+        FieldPanel('lien'),
+        MultiFieldPanel([
+            FieldPanel('publiee_le'),
+            FieldPanel('fin_d_affichage'),
+            FieldPanel('epinglee'),
+        ], heading="Affichage"),
+    ]
+
+    class Meta:
+        ordering = ['-publiee_le']
+        verbose_name = "Annonce"
+        verbose_name_plural = "Annonces"
+
+    def __str__(self):
+        return self.titre
+
+    def clean(self):
+        super().clean()
+        if self.type_annonce == self.SESSION and not self.date_session:
+            raise ValidationError({'date_session': "Indique la date et l'heure de la session "
+                                                   "(c'est elle qui fait le compte à rebours)."})
+
+    @property
+    def est_une_session(self):
+        return self.type_annonce == self.SESSION and self.date_session is not None
+
+    @property
+    def fin_de_session(self):
+        return self.date_session + self.DUREE_D_UNE_SESSION if self.est_une_session else None
+
+    def retiree_le(self):
+        """Le moment où l'annonce quitte l'accueil (None : jamais)."""
+        if self.fin_d_affichage:
+            return self.fin_d_affichage
+        if self.est_une_session:
+            return self.fin_de_session
+        return None if self.epinglee else self.publiee_le + self.DUREE_PAR_DEFAUT
+
+    def est_visible(self, maintenant):
+        fin = self.retiree_le()
+        return self.publiee_le <= maintenant and (fin is None or maintenant < fin)
+
+    @classmethod
+    def du_moment(cls, maintenant=None, combien=3):
+        """
+        Pour l'accueil : (la prochaine session, [les autres annonces]).
+        La session la plus PROCHE est mise en avant ; les autres annonces
+        (épinglées d'abord, puis les plus récentes) en petites cartes.
+        Peu d'annonces en base : le tri se fait en Python, lisiblement.
+        """
+        maintenant = maintenant or timezone.now()
+        visibles = [a for a in cls.objects.filter(publiee_le__lte=maintenant) if a.est_visible(maintenant)]
+        sessions = sorted((a for a in visibles if a.est_une_session), key=lambda a: a.date_session)
+        prochaine = sessions[0] if sessions else None
+        autres = sorted((a for a in visibles if a is not prochaine),
+                        key=lambda a: (not a.epinglee, -a.publiee_le.timestamp()))
+        return prochaine, autres[:combien]
