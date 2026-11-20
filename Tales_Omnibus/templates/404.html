@@ -1,11 +1,39 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags navigation_tags %}
+{# Page 404 : DANS le site (menu, recherche, thème choisi), pour que le visiteur  #}
+{# perdu retrouve son chemin. Le titre et la phrase suivent le thème              #}
+{# (core/models.py TEXTES_404). Django la sert avec le code 404, jamais 200 :     #}
+{# un moteur de recherche ne doit pas indexer une page qui n'existe pas.          #}
 
-{% block title %}Page introuvable | {{ seo.titre }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block title %}{% texte_404 as texte %}{{ texte.0 }} | {{ seo.titre }}{% endblock %}
 
 {% block body_class %}template-404{% endblock %}
 
 {% block content %}
-<h1>Page not found</h1>
+{% texte_404 as texte %}
+<main class="container page-erreur" id="contenu">
+    <section class="panel panel--rounded panel--strong erreur-panneau">
+        <p class="erreur-code" aria-hidden="true">404</p>
+        <h1 class="panel-title erreur-titre">{{ texte.0 }}</h1>
+        <p class="erreur-texte">{{ texte.1 }}</p>
 
-<h2>Sorry, this page could not be found.</h2>
+        {# La recherche, pré-remplie avec les mots de l'adresse cassée #}
+        <form action="{% url 'search' %}" method="get" role="search" class="erreur-recherche">
+            <label for="recherche-404">Chercher dans l'univers</label>
+            <div class="erreur-recherche-champ">
+                <input type="search" id="recherche-404" name="query" value="{{ request.path|mots_de_l_adresse }}">
+                <button type="submit" class="btn">Chercher</button>
+            </div>
+        </form>
+
+        {% slugurl "campagnes" as url_campagnes %}{% slugurl "encyclopedie" as url_encyclopedie %}
+        <nav class="erreur-liens" aria-label="Autres chemins">
+            <a href="/" class="btn">Retour à l'accueil</a>
+            {% if url_campagnes %}<a href="{{ url_campagnes }}" class="btn-link">Les campagnes</a>{% endif %}
+            {% if url_encyclopedie %}<a href="{{ url_encyclopedie }}" class="btn-link">L'encyclopédie</a>{% endif %}
+        </nav>
+    </section>
+</main>
 {% endblock %}

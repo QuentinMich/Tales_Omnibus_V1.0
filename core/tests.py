@@ -884,3 +884,52 @@ class CouleursDesCategoriesTests(TestCase):
                     contraste = (contraste_avec_le_blanc(couleur) if encre_lisible(couleur) == "#FFFFFF"
                                  else contraste_avec_le_noir(couleur))
                     self.assertGreaterEqual(contraste, 4.5, couleur)
+
+
+class PagesDErreurTests(TestCase):
+    """404 dans le site (texte du thème), 500 autonome (aucune base de données)."""
+
+    def get_404(self, adresse="/campagnes/fort-sombre/"):
+        from django.test import override_settings
+        with override_settings(DEBUG=False):
+            return self.client.get(adresse)
+
+    def test_la_404_reste_dans_le_site_avec_le_bon_code(self):
+        reponse = self.get_404()
+        self.assertEqual(reponse.status_code, 404)  # jamais 200 : Google ne doit pas l'indexer
+        html = reponse.content.decode()
+        self.assertEqual(html.count("<h1"), 1)
+        self.assertIn("Page introuvable", html)
+        self.assertIn('class="site-search"', html)               # le site autour : menu, recherche
+        self.assertIn('value="fort sombre"', html)               # recherche pré-remplie
+        self.assertIn('content="noindex"', html)
+
+    def test_la_404_parle_la_langue_du_theme(self):
+        from core.models import NavigationSettings
+        reglages = NavigationSettings.load()
+        reglages.theme = "grimoire"
+        reglages.save()
+        self.assertContains(self.get_404(), "Page arrachée du grimoire", status_code=404)
+
+    def test_chaque_theme_a_son_texte_404(self):
+        from core.models import TEXTES_404, THEMES
+        self.assertEqual(set(TEXTES_404), {cle for cle, _ in THEMES})
+
+    def test_les_mots_de_l_adresse(self):
+        from core.templatetags.navigation_tags import mots_de_l_adresse
+        self.assertEqual(mots_de_l_adresse("/encyclopedie/l-epee-sans-nom/"), "l epee sans nom")
+        self.assertEqual(mots_de_l_adresse("/media/images/carte.png"), "carte")
+        self.assertEqual(mots_de_l_adresse("/"), "")
+        self.assertEqual(mots_de_l_adresse("/page/42/"), "")
+
+    def test_la_500_ne_touche_pas_a_la_base(self):
+        # Si la base est en panne, la page d'erreur doit quand même s'afficher :
+        # elle ne fait AUCUNE requête.
+        from django.test import RequestFactory
+        from django.views.defaults import server_error
+        with self.assertNumQueries(0):
+            reponse = server_error(RequestFactory().get("/"))
+        self.assertEqual(reponse.status_code, 500)
+        html = reponse.content.decode()
+        self.assertIn("Un sortilège a mal tourné", html)
+        self.assertNotIn("/static/", html)  # rien à charger : tout est dans la page

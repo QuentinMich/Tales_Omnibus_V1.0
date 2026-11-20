@@ -467,6 +467,16 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
   (retirés avec la démo). Fichier absent = repli sur les images du site.
   3 icônes SVG de catégories (Ville, Village, Lieu-dit) livrées, posées sur
   les catégories qui n'ont pas encore d'icône.
+- **Pages d'erreur** (`Tales_Omnibus/templates/404.html` et `500.html`) :
+  la 404 est DANS le site (menu, recherche, thème), code 404 + `noindex` ;
+  titre et phrase selon le thème (`TEXTES_404`, core/models.py, tag
+  `{% texte_404 %}` ; un thème sans texte fait échouer un test) ; recherche
+  pré-remplie avec la fin de l'adresse cassée (filtre `mots_de_l_adresse`).
+  Liens simples du panneau sombre en `--color-highlight` (la couleur des
+  liens d'un thème est prévue pour un fond clair). La 500 est AUTONOME :
+  aucune balise qui lit la base ni les fichiers statiques (CSS et
+  monogramme dans la page), car une panne vient souvent de la base ; test
+  `assertNumQueries(0)`. Pour la voir en local : DEBUG=False + `runserver --insecure`.
 - **Référencement** : `/sitemap.xml` (`wagtail.contrib.sitemaps`, calculé à
   chaque visite : toujours à jour) et `/robots.txt` (`core/views.py` :
   interdit `/admin/`, `/django-admin/`, `/search/`, indique le sitemap).

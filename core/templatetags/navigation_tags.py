@@ -129,3 +129,30 @@ def statistiques_de_visite(context):
         compte.url_goatcounter,
     )
 
+
+
+# --- PAGE 404 ------------------------------------------------------------------
+@register.simple_tag(takes_context=True)
+def texte_404(context):
+    """(titre, phrase) de la page 404, dans la langue du thème choisi."""
+    from core.models import TEXTES_404, NavigationSettings  # ici : évite un import circulaire
+
+    request = context.get('request')
+    theme = NavigationSettings.load(request_or_site=request).theme if request else ""
+    return TEXTES_404.get(theme) or TEXTES_404[""]
+
+
+@register.filter
+def mots_de_l_adresse(chemin):
+    """
+    « /campagnes/les-brumes-dardenn/fort-sombre/ » -> « fort sombre » : la
+    404 pré-remplit sa recherche avec le DERNIER morceau de l'adresse cassée.
+    Un vieux lien vers une fiche renommée se retrouve souvent en un clic.
+    """
+    from urllib.parse import unquote
+
+    morceaux = [m for m in unquote(chemin or "").split("/") if m]
+    if not morceaux:
+        return ""
+    mots = morceaux[-1].rsplit(".", 1)[0].replace("-", " ").replace("_", " ").strip()
+    return "" if mots.isdigit() else mots[:80]

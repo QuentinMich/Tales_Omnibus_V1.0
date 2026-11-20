@@ -61,6 +61,29 @@ THEMES = [
     ("survivant", "Survivant : zombies et survival horror"),
 ]
 
+# La page 404 parle la langue du thème (titre, phrase). C'est du TEXTE, donc
+# ici et pas dans le CSS : un lecteur d'écran doit pouvoir le lire.
+# Un thème ajouté à THEMES sans son texte fait échouer un test.
+TEXTES_404 = {
+    "": ("Page introuvable",
+         "Cette page n'existe pas, ou plus. Elle a peut-être été renommée ou déplacée."),
+    "grimoire": ("Page arrachée du grimoire",
+                 "Quelqu'un a déchiré ce feuillet, ou bien il n'a jamais été écrit. "
+                 "Les autres chapitres, eux, sont toujours là."),
+    "cyberpunk": ("Erreur 404 : signal perdu",
+                  "Cette adresse ne mène plus nulle part sur le réseau. "
+                  "Reconnecte-toi par l'un des accès ci-dessous."),
+    "tenebres": ("Ici ne reste que la cendre",
+                 "Ce que tu cherches a brûlé, ou n'a jamais existé. "
+                 "Ne t'attarde pas : d'autres chemins restent ouverts."),
+    "enquete": ("Dossier introuvable",
+                "Le classeur est vide à cette lettre. Pièce égarée, déplacée, "
+                "ou soigneusement effacée : l'enquête continue ailleurs."),
+    "survivant": ("Zone évacuée",
+                  "Il n'y a plus personne à cette adresse. "
+                  "Ne reste pas à découvert : regagne un abri ci-dessous."),
+}
+
 
 @register_setting
 class NavigationSettings(ClusterableModel, BaseGenericSetting):
