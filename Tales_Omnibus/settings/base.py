@@ -204,6 +204,9 @@ WAGTAILADMIN_BASE_URL = "http://example.com"
 # catégories nets à toutes les tailles). Un SVG peut contenir du JavaScript :
 # voir core/middleware.py pour la protection.
 WAGTAILIMAGES_EXTENSIONS = ["avif", "gif", "jpg", "jpeg", "png", "webp", "svg"]
+# Formulaire d'envoi : le SVG (qui peut contenir du JavaScript) est réservé
+# à l'administrateur, un joueur ne peut pas en envoyer (core/formulaire_image.py)
+WAGTAILIMAGES_IMAGE_FORM_BASE = "core.formulaire_image.FormulaireImage"
 
 # Poids des pages (SEO : la vitesse compte dans le classement) : les VIGNETTES
 # que Wagtail fabrique ({% image … fill-… %}) sont enregistrées en WebP, 25 à

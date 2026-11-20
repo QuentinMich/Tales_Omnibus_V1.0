@@ -10,6 +10,7 @@ from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
 from wagtail.contrib.forms.models import AbstractEmailForm, AbstractFormField
 from wagtail.snippets.models import register_snippet
 
+from core.antispam import NOM_DU_PIEGE, champ_piege, est_un_robot
 from core.blocks import BaseStreamBlock
 from core.models import NavigationSettings
 from core.polices import theme_utilise_google_fonts
@@ -215,6 +216,20 @@ class ContactPage(SlugAutomatiqueMixin, AbstractEmailForm):
         context = super().get_context(request, *args, **kwargs)
         context['prestations'] = Prestation.objects.all()
         return context
+
+    # --- Pot de miel anti-spam (core/antispam.py) ---------------------------
+    def get_form(self, *args, **kwargs):
+        # Le champ piège s'ajoute aux champs que le MJ a créés dans l'admin
+        form = super().get_form(*args, **kwargs)
+        form.fields[NOM_DU_PIEGE] = champ_piege()
+        return form
+
+    def process_form_submission(self, form):
+        if est_un_robot(form.cleaned_data):
+            return None  # même page « merci », mais rien d'enregistré ni d'envoyé
+        # Le champ piège (vide) n'a rien à faire dans le message reçu par le MJ
+        form.cleaned_data.pop(NOM_DU_PIEGE, None)
+        return super().process_form_submission(form)
 
 
 # 4. PRESTATIONS : snippet (menu « Fragments » de l'admin).

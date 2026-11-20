@@ -13,6 +13,7 @@ from wagtail.search import index
 from core.models import (
     BaseFichePage, FicheEncyclopedieMixin, SOCIAL_PLATFORMS, arbre_des_categories, categories_en_memoire,
 )
+from core.antispam import est_un_robot
 from core.forms import HeroContactForm
 from core.blocks import STATS_DND, BaseStreamBlock, TableauDeStatsBlock
 from core.panels import panels_avec_enfants
@@ -944,7 +945,10 @@ class HeroPage(FicheEncyclopedieMixin, BaseFichePage):
         if self.contact_actif and request.method == 'POST':
             form = HeroContactForm(request.POST)
             if form.is_valid():
-                self.envoyer_message(form.cleaned_data)
+                # Un robot (pot de miel rempli) reçoit le même message de
+                # succès, mais rien n'est gardé ni envoyé : core/antispam.py
+                if not est_un_robot(form.cleaned_data):
+                    self.envoyer_message(form.cleaned_data)
                 messages.success(request, "Votre message a bien été envoyé au joueur !")
                 # Redirection après POST : évite le double envoi si on rafraîchit la page
                 return redirect(self.get_url(request))

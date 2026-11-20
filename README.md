@@ -58,3 +58,36 @@ contenus, index de recherche. `--simulation` pour voir sans rien changer.
 La base de données (`db.sqlite3`) et les fichiers envoyés (`media/`) : chaque
 installation a les siens. Les réglages secrets d'un serveur vont dans
 `Tales_Omnibus/settings/local.py`, lui aussi exclu.
+
+## Mise en ligne : sécurité côté serveur
+
+`Tales_Omnibus/settings/production.py` pose des réglages sûrs par défaut
+(cookies réservés au HTTPS, HSTS). Sur le serveur, `settings/local.py` doit
+au minimum contenir la clé secrète et l'adresse du site : sans clé secrète,
+le site refuse de démarrer.
+
+```python
+SECRET_KEY = "…"            # python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+ALLOWED_HOSTS = ["mon-site.fr"]
+CSRF_TRUSTED_ORIGINS = ["https://mon-site.fr"]
+```
+
+C'est **nginx** qui sert les fichiers envoyés (`/media/`), pas Django. Deux
+lignes à ajouter dans le bloc `server { … }` du site :
+
+```nginx
+server_tokens off;   # ne pas afficher la version de nginx
+
+# Un SVG peut contenir du JavaScript : servi SANS droit d'exécuter un script
+location ~* ^/media/.+\.svg$ {
+    # Le dossier qui CONTIENT media/ : si « location /media/ » a
+    # « alias /home/moi/app/media/; », écrire ici « root /home/moi/app; »
+    root /chemin/vers/le/projet;
+    add_header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox" always;
+    add_header X-Content-Type-Options "nosniff" always;
+}
+```
+
+Puis `sudo nginx -t` (vérifie la configuration) et `sudo systemctl reload nginx`.
+Vérification : `curl -I https://mon-site.fr/media/images/<une-icone>.svg`
+doit afficher la ligne `Content-Security-Policy`.

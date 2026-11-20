@@ -467,6 +467,24 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
   (retirés avec la démo). Fichier absent = repli sur les images du site.
   3 icônes SVG de catégories (Ville, Village, Lieu-dit) livrées, posées sur
   les catégories qui n'ont pas encore d'icône.
+- **Sécurité (audit du 20/11)** :
+  - SVG RÉSERVÉ au superuser : `core/formulaire_image.FormulaireImage`
+    (`WAGTAILIMAGES_IMAGE_FORM_BASE`) refuse un `.svg` envoyé par un autre
+    compte (joueur). Sans utilisateur (démo, commande) : permis. Plus la CSP
+    sur `/media/*.svg` dans NGINX (snippet dans le README) : À POSER sur le
+    serveur, c'est nginx et pas Django qui sert les médias.
+  - `settings/production.py` : cookies `Secure`, HSTS 30 jours (sans
+    includeSubDomains ni preload, avertissements W005/W021/W008 rendus muets
+    exprès : la redirection https est faite par nginx). Refuse de démarrer
+    sans `SECRET_KEY` (ou avec une clé `django-insecure`) dans local.py.
+  - Pot de miel anti-spam (`core/antispam.py`) : champ `site_internet` caché
+    hors écran (`.form-group--site_internet`, pas `display: none`) sur le
+    formulaire du héros (`HeroContactForm`) et la page Contact
+    (`ContactPage.get_form` / `process_form_submission`). Rempli = robot :
+    même message de succès, rien enregistré ni envoyé.
+  - Restent (audit) : limite de tentatives de connexion, purge RGPD des
+    messages > 12 mois, lien « Aller au contenu », requêtes en trop sur les
+    fiches (catégories et tags relus fiche par fiche), sauvegardes hors serveur.
 - **Pages d'erreur** (`Tales_Omnibus/templates/404.html` et `500.html`) :
   la 404 est DANS le site (menu, recherche, thème), code 404 + `noindex` ;
   titre et phrase selon le thème (`TEXTES_404`, core/models.py, tag

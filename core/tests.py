@@ -1,4 +1,5 @@
 import os
+from django.core import mail
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase, override_settings
 from wagtail.models import Page
@@ -933,3 +934,92 @@ class PagesDErreurTests(TestCase):
         html = reponse.content.decode()
         self.assertIn("Un sortilège a mal tourné", html)
         self.assertNotIn("/static/", html)  # rien à charger : tout est dans la page
+
+
+class SecuriteTests(TestCase):
+    """SVG réservé au MJ, pot de miel anti-spam, réglages de production."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        Utilisateur = get_user_model()
+        self.mj = Utilisateur.objects.create_superuser("mj", "mj@example.com", "x")
+        self.joueur = Utilisateur.objects.create_user("zoe", "zoe@example.com", "x")
+        from campagnes.joueurs import groupe_des_joueurs
+        self.joueur.groups.add(groupe_des_joueurs())  # le droit d'envoyer des images, comme en vrai
+
+    def formulaire(self, utilisateur, nom="piege.svg", contenu=b'<svg xmlns="http://www.w3.org/2000/svg"/>'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from wagtail.images import get_image_model
+        from wagtail.images.forms import get_image_form
+        Formulaire = get_image_form(get_image_model())
+        return Formulaire({"title": "Essai"}, {"file": SimpleUploadedFile(nom, contenu, "image/svg+xml")},
+                          user=utilisateur)
+
+    def test_un_joueur_ne_peut_pas_envoyer_de_svg(self):
+        formulaire = self.formulaire(self.joueur)
+        self.assertFalse(formulaire.is_valid())
+        self.assertIn("réservées à l'administrateur", formulaire.errors["file"][0])
+
+    def test_le_mj_peut_envoyer_un_svg(self):
+        formulaire = self.formulaire(self.mj)
+        formulaire.is_valid()
+        self.assertNotIn("file", formulaire.errors)
+
+    def test_un_joueur_peut_envoyer_un_png(self):
+        from wagtail.images.tests.utils import get_test_image_file
+        fichier = get_test_image_file()
+        formulaire = self.formulaire(self.joueur, nom="portrait.png", contenu=fichier.file.getvalue())
+        formulaire.is_valid()
+        self.assertNotIn("file", formulaire.errors)
+
+    def test_le_robot_tombe_dans_le_pot_de_miel_du_contact(self):
+        from home.models import HomePage
+        from pages.models import ContactFormField, ContactPage
+        contact = HomePage.objects.first().add_child(instance=ContactPage(title="Contact", to_address="mj@example.com"))
+        ContactFormField.objects.create(page=contact, label="Message", field_type="multiline", required=True)
+        page = self.client.get(contact.url)
+        self.assertContains(page, 'name="site_internet"')  # le piège est bien posé
+        humain = {"message": "Bonjour !"}
+        robot = {"message": "Achetez des montres", "site_internet": "http://spam.example"}
+        self.client.post(contact.url, robot)
+        self.assertEqual(contact.get_submission_class().objects.count(), 0)   # rien d'enregistré
+        self.assertEqual(len(mail.outbox), 0)                                  # rien d'envoyé
+        reponse = self.client.post(contact.url, humain)
+        self.assertEqual(contact.get_submission_class().objects.count(), 1)
+        self.assertNotIn("site_internet", contact.get_submission_class().objects.get().get_data())
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_le_robot_tombe_dans_le_pot_de_miel_du_heros(self):
+        from campagnes.models import CampagnePage, CampagnesIndexPage, HeroPage, MessageAuHeros
+        from home.models import HomePage
+        campagne = HomePage.objects.first().add_child(instance=CampagnesIndexPage(title="Campagnes")).add_child(
+            instance=CampagnePage(title="Saison"))
+        hero = campagne.add_child(instance=HeroPage(title="Brann", joueur_nom="Zoé", enable_contact=True,
+                                                    joueur_email="zoe@example.com"))
+        donnees = {"nom": "Robot", "email": "r@example.com", "raison": "autre", "message": "Spam",
+                   "site_internet": "http://spam.example"}
+        reponse = self.client.post(hero.url, donnees, follow=True)
+        self.assertContains(reponse, "bien été envoyé")  # le robot croit avoir réussi
+        self.assertEqual(MessageAuHeros.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_les_reglages_de_production_sont_surs(self):
+        import importlib
+        import sys
+        from django.core.exceptions import ImproperlyConfigured
+        from unittest import mock
+        # Sans clé secrète (pas de local.py) : le site refuse de démarrer
+        sys.modules.pop("Tales_Omnibus.settings.production", None)
+        with mock.patch.dict("sys.modules", {"Tales_Omnibus.settings.local": None}):
+            with self.assertRaises(ImproperlyConfigured):
+                importlib.import_module("Tales_Omnibus.settings.production")
+        # Avec une vraie clé : cookies réservés au HTTPS et HSTS
+        local = type(sys)("Tales_Omnibus.settings.local")
+        local.SECRET_KEY = "une-vraie-cle-de-test-" + "x" * 40
+        sys.modules.pop("Tales_Omnibus.settings.production", None)
+        with mock.patch.dict("sys.modules", {"Tales_Omnibus.settings.local": local}):
+            production = importlib.import_module("Tales_Omnibus.settings.production")
+        sys.modules.pop("Tales_Omnibus.settings.production", None)
+        self.assertTrue(production.SESSION_COOKIE_SECURE)
+        self.assertTrue(production.CSRF_COOKIE_SECURE)
+        self.assertGreater(production.SECURE_HSTS_SECONDS, 0)

@@ -1,5 +1,7 @@
 from django import forms
 
+from core.antispam import champ_piege
+
 class HeroContactForm(forms.Form):
     nom = forms.CharField(
         max_length=100, 
@@ -19,3 +21,5 @@ class HeroContactForm(forms.Form):
     message = forms.CharField(
         widget=forms.Textarea(attrs={'placeholder': 'Votre message...', 'rows': 4})
     )
+    # Le pot de miel (core/antispam.py) : caché aux humains, rempli par les robots
+    site_internet = champ_piege()

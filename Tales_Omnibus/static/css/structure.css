@@ -2628,6 +2628,16 @@ html:has(.template-home) {
     margin: 0;
 }
 
+/* Pot de miel anti-spam (core/antispam.py) : HORS de l'écran, pas
+   display: none (certains robots sautent les champs invisibles) */
+.form-group--site_internet {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 /* ==========================================================================
    PAGES D'ERREUR : la 404, dans le site (le texte suit le thème : TEXTES_404).
    La 500, elle, est AUTONOME (son CSS est dans 500.html) : voir ce fichier.
