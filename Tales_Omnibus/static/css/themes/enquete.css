@@ -339,7 +339,7 @@ main {
 /* ==========================================================================
    4 bis. ENLUMINURES : la lettrine, le tableau de liège, le télégramme
    ========================================================================== */
-.enluminure .richtext > p:first-child::first-letter {
+.enluminure:not(.enluminure--sans-lettrine) .richtext > p:first-child::first-letter {
     margin: 0.06em 0.2em 0 0;
     padding: 0.12em 0.18em 0.04em;
     background:

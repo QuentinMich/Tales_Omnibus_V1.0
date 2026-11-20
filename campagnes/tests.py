@@ -738,3 +738,29 @@ class CartesRelieesEtGeographieTests(CampagneTreeMixin, TestCase):
 
     def test_la_fiche_d_une_region_mene_au_filtre(self):
         self.assertContains(self.client.get(self.lieux["Val"].url), f"?lieu={self.lieux['Val'].pk}")
+
+
+class CouleurDuLieuTests(TestCase):
+    """Deux royaumes de la même catégorie peuvent avoir chacun leur couleur."""
+
+    def test_la_couleur_du_lieu_passe_avant_celle_de_la_categorie(self):
+        from campagnes.models import Apparition, CartePage, LieuPage
+        from core.models import Categorie
+        from encyclopedie.models import EncyclopedieIndexPage
+        royaume = Categorie.objects.create(nom="Royaume", couleur="#3B6EA2")
+        home = HomePage.objects.first()
+        encyclopedie = home.add_child(instance=EncyclopedieIndexPage(title="Encyclopédie"))
+        nord = encyclopedie.add_child(instance=LieuPage(title="Nord", categorie=royaume, couleur="#7A1C1C"))
+        sud = encyclopedie.add_child(instance=LieuPage(title="Sud", categorie=royaume))
+        campagne = home.add_child(instance=CampagnesIndexPage(title="Campagnes")).add_child(
+            instance=CampagnePage(title="Saison"))
+        carte = campagne.add_child(instance=CartePage(title="Carte"))
+        forme = [[10, 10], [40, 10], [40, 40]]
+        Apparition.objects.create(carte=carte, lieu=nord, forme=forme)
+        Apparition.objects.create(carte=carte, lieu=sud, forme=[[50, 50], [90, 50], [90, 90]])
+
+        self.assertEqual(nord.couleur_effective, "#7A1C1C")
+        self.assertEqual(sud.couleur_effective, "#3B6EA2")  # pas de couleur : celle de la catégorie
+        html = self.client.get(carte.url).content.decode()
+        self.assertIn("--marker-color: #7A1C1C", html)
+        self.assertIn("--marker-color: #3B6EA2", html)

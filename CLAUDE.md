@@ -130,6 +130,15 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
   `ranger_par_famille()` groupe les tags (filtres de l'encyclopédie et tags
   des fiches via `{% tags_par_famille %}`) ; repère visuel :
   `core/includes/tag_marque.html` (icône, sinon pastille de couleur).
+- **Mots-clés** (Organisation > Mots-clés, migration encyclopedie 0012) :
+  `MotCle`, modèle PROXY de `taggit.Tag` (même table, noms français, droits
+  propres), `MotCleViewSet` : renommer ou SUPPRIMER un tag (Wagtail n'a
+  aucun écran pour ça). Colonne « Fiches » calculée par la base
+  (`nombre_de_liens()`, une sous-requête par table de tags). Les tags qui
+  ne servent QU'AUX IMAGES (`taggit.TaggedItem`, ex. `demo-tales-omnibus`
+  qui sert à retirer la démo) sont cachés. La confirmation de suppression
+  dit combien de fiches perdent le tag (`SupprimerUnMotCle` : le
+  « référencé 0 fois » de Wagtail était faux, son index ne suit pas les tags).
 - **Squelette commun des fiches** : `core/templates/core/fiche_page.html`
   (Héros, Lieu, Événement, Lore font `extends` et remplissent
   `fiche_surtitre`, `fiche_details`, `fiche_annexes`). Structure sémantique :
@@ -172,6 +181,11 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
     transparent conservé) ; l'icône précède aussi le nom des zones.
     `Apparition.categorie_affichee` : pré-remplie par `CartePage.get_context`
     avec `categories_en_memoire()` (1 requête), sinon `categorie_effective` ;
+  - COULEUR (migration campagnes 0027) : `LieuPage.couleur` (« Couleur sur
+    les cartes », facultative) passe AVANT celle de la catégorie : deux
+    royaumes de la même catégorie ont chacun leur couleur (nations).
+    `Apparition.couleur_affichee` (cartes, mini-cartes, marqueurs) et
+    `LieuPage.couleur_effective` (pastilles). L'ICÔNE reste celle de la catégorie ;
   - `motif` (pleine / hachurée) et `bordure` (continue / tirets), réglables
     séparément. Les hachures sont un `repeating-linear-gradient` découpé par
     `clip-path: polygon(…)` (`Apparition.clip_path`), PAS un motif SVG (il
@@ -521,7 +535,12 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
   Le creux (`drop-shadow`) est sur le cadre `.site-logo-pochoir` : sur
   l'élément masqué, le masque couperait l'ombre.
 - **Bloc « Enluminure »** (`EnluminureBlock`, `BaseStreamBlock`) : texte +
-  ornement (lettrine / rinceaux dans la marge / page encadrée). La lettrine
+  ornement (aucun / rinceaux dans la marge / page encadrée) + case
+  « Lettrine » (cochée par défaut, donc les anciens blocs la gardent ;
+  décochée : classe `enluminure--sans-lettrine`, et les règles de lettrine
+  de TOUS les thèmes visent `.enluminure:not(.enluminure--sans-lettrine)`).
+  La valeur d'ornement « lettrine » veut dire « aucun ornement » (gardée
+  pour ne pas casser les blocs existants). La lettrine
   est un `::first-letter` (le mot reste entier dans le HTML). Version sobre
   dans `structure.css`, version enluminée dans le thème. La démo en met un
   au début de chaque fiche Lore (les 3 ornements à tour de rôle). Dans le

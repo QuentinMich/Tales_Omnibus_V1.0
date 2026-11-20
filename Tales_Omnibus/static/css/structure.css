@@ -823,7 +823,7 @@ figure {
     margin-block: var(--space-lg);
 }
 
-.enluminure .richtext > p:first-child::first-letter {
+.enluminure:not(.enluminure--sans-lettrine) .richtext > p:first-child::first-letter {
     float: left;
     margin: 0.05em 0.12em 0 0;
     color: var(--color-title);

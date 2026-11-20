@@ -1,6 +1,6 @@
 {# Une zone surlignée sur une mini-carte (même dessin que la page Carte). #}
 {# Attend « apparition » dans le contexte.                                #}
-{% with couleur=apparition.categorie_affichee.couleur_effective %}
+{% with couleur=apparition.couleur_affichee %}
     {% if apparition.est_hachuree %}
         <span class="carte-hachures" aria-hidden="true"
               style="clip-path: {{ apparition.clip_path }};{% if couleur %} --marker-color: {{ couleur }};{% endif %}"></span>

@@ -68,7 +68,7 @@
         {% for apparition in zones %}
             {% if apparition.est_hachuree %}
                 <span class="carte-hachures" aria-hidden="true" data-categories="{{ apparition.ids_categories }}"
-                      style="clip-path: {{ apparition.clip_path }};{% if apparition.categorie_affichee.couleur_effective %} --marker-color: {{ apparition.categorie_affichee.couleur_effective }};{% endif %}"></span>
+                      style="clip-path: {{ apparition.clip_path }};{% if apparition.couleur_affichee %} --marker-color: {{ apparition.couleur_affichee }};{% endif %}"></span>
             {% endif %}
         {% endfor %}
 
@@ -84,7 +84,7 @@
                     {# Carte reliée : la zone ouvre la carte DÉTAILLÉE du lieu (un zoom) #}
                     <a href="{% if apparition.carte_detaillee %}{% pageurl apparition.carte_detaillee %}{% else %}{% pageurl apparition.lieu %}{% endif %}"
                        tabindex="-1" data-categories="{{ apparition.ids_categories }}"{% if apparition.carte_detaillee %} class="carte-zone-lien--detaillee"{% endif %}>
-                        <polygon class="{{ apparition.classes_zone }}" points="{{ apparition.points_svg }}"{% if apparition.categorie_affichee.couleur_effective %} style="--marker-color: {{ apparition.categorie_affichee.couleur_effective }};"{% endif %}>
+                        <polygon class="{{ apparition.classes_zone }}" points="{{ apparition.points_svg }}"{% if apparition.couleur_affichee %} style="--marker-color: {{ apparition.couleur_affichee }};"{% endif %}>
                             <title>{{ apparition.lieu.title }}{% if apparition.carte_detaillee %} : ouvrir la carte détaillée{% endif %}</title>
                         </polygon>
                     </a>

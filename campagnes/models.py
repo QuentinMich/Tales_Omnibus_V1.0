@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -541,6 +541,18 @@ class Apparition(Orderable):
     def categorie_affichee(self, valeur):
         self._categorie_affichee = valeur
 
+    @property
+    def couleur_affichee(self):
+        """
+        La couleur du lieu sur la carte : la SIENNE si le MJ en a choisi une
+        (une nation), sinon celle de sa catégorie. L'icône, elle, reste celle
+        de la catégorie : deux royaumes gardent le même symbole.
+        """
+        if self.lieu.couleur:
+            return self.lieu.couleur
+        categorie = self.categorie_affichee
+        return categorie.couleur_effective if categorie else ""
+
     def chemin(self):
         """
         La géographie de ce lieu SUR CETTE CARTE, du plus grand au plus
@@ -637,12 +649,30 @@ class LieuPage(FicheEncyclopedieMixin, BaseFichePage):
     subpage_types = []  # Page feuille (pas d'enfants)
     parent_page_types = ['encyclopedie.EncyclopedieIndexPage']
     tags = ClusterTaggableManager(through=LieuPageTag, blank=True)
+    # Sa PROPRE couleur sur les cartes. Sans elle, deux royaumes de la même
+    # catégorie avaient la même couleur : impossible de distinguer les nations.
+    couleur = models.CharField(
+        max_length=7, blank=True,
+        validators=[RegexValidator(r'^#[0-9A-Fa-f]{6}$', "Code couleur au format #RRGGBB.")],
+        verbose_name="Couleur sur les cartes",
+        help_text="Code HEX (#7A1C1C). Pour distinguer deux lieux de la même catégorie "
+                  "(deux royaumes, deux nations). Si vide, reprend la couleur de la catégorie."
+    )
 
     content_panels = BaseFichePage.content_panels + [
         FieldPanel('categorie'),
+        FieldPanel('couleur'),
         FieldPanel("tags"),
         FieldPanel("epinglee"),
     ]
+
+    @property
+    def couleur_effective(self):
+        """Sa couleur à lui, sinon celle de sa catégorie (ou d'un parent)."""
+        if self.couleur:
+            return self.couleur
+        categorie = self.categorie_effective
+        return categorie.couleur_effective if categorie else ""
 
     def apparitions_publiees(self):
         """Les cartes publiées où figure ce lieu, dans l'ordre de l'arborescence."""

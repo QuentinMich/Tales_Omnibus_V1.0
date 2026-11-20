@@ -369,7 +369,7 @@ h1, h2, h3, h4 {
 
 /* La lettrine : une capitale gothique en feuille d'or, posée sur un carré
    de vermillon cerné d'or, avec un petit rinceau peint en fond */
-.enluminure .richtext > p:first-child::first-letter {
+.enluminure:not(.enluminure--sans-lettrine) .richtext > p:first-child::first-letter {
     margin: 0.06em 0.18em 0 0;
     padding: 0.12em 0.16em 0.05em;
     border: 3px double var(--or);

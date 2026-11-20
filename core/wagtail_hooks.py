@@ -119,7 +119,7 @@ def sous_menu(libelle, nom, icone, ordre, entrees):
 @hooks.register("construct_main_menu")
 def organiser_le_menu(request, menu_items):
     from core.models import Categorie
-    from encyclopedie.models import FamilleDeTags
+    from encyclopedie.models import FamilleDeTags, MotCle
     from pages.models import Prestation
 
     principal = {entree.name: entree for entree in menu_items}
@@ -140,6 +140,7 @@ def organiser_le_menu(request, menu_items):
         principal.get("documents"),
         sous_menu("Organisation", "organisation", "list-ul", 500, [
             LienVersUnFragment("Catégories", Categorie, icon_name="folder-inverse"),
+            LienVersUnFragment("Mots-clés", MotCle, icon_name="tag"),
             LienVersUnFragment("Familles de tags", FamilleDeTags, icon_name="tag"),
             LienVersUnFragment("Prestations", Prestation, icon_name="pick"),
         ]),

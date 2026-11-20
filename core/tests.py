@@ -417,7 +417,7 @@ class MenuAdminTests(TestCase):
         menu = dict(self.menu_pour(admin))
         # « Bien démarrer » en tête : la première chose à faire sur un site neuf
         self.assertEqual(list(menu)[:4], ["Bien démarrer", "Plan du site", "Univers", "Dossiers"])
-        self.assertEqual(menu["Organisation"], ["Catégories", "Familles de tags", "Prestations"])
+        self.assertEqual(menu["Organisation"], ["Catégories", "Mots-clés", "Familles de tags", "Prestations"])
         self.assertEqual(menu["Comptes"], ["Utilisateurs", "Groupes"])
         self.assertEqual(menu["Paramètres avancés"], ["Sites", "Redirections", "Workflows", "Tâches de workflow"])
         for libelle in ("Images", "Documents", "Messages", "Paramètres du site", "Entretien du site", "Rapports"):
@@ -503,6 +503,15 @@ class EnluminureBlockTests(TestCase):
         self.assertIn('class="enluminure enluminure--marge"', html)
         # La lettrine est faite en CSS : le mot reste entier dans le HTML
         self.assertIn("Il était une fois", html)
+
+    def test_cadre_sans_lettrine(self):
+        from core.blocks import EnluminureBlock
+        bloc = EnluminureBlock()
+        sans = bloc.render(bloc.to_python({"ornement": "cadre", "lettrine": False, "texte": "<p>Encart</p>"}))
+        self.assertIn('class="enluminure enluminure--cadre enluminure--sans-lettrine"', sans)
+        # Un bloc enregistré AVANT la case garde sa lettrine (défaut : cochée)
+        ancien = bloc.render(bloc.to_python({"ornement": "cadre", "texte": "<p>Encart</p>"}))
+        self.assertNotIn("sans-lettrine", ancien)
 
 
 class BienDemarrerTests(TestCase):

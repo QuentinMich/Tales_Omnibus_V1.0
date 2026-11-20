@@ -287,3 +287,54 @@ class StructureDesFichesTests(ArborescenceMixin, TestCase):
         self.assertIn('<h2 class="article-section-titre">Origines</h2>', html)
         self.assertIn('block-image--droite', html)
         self.assertIn('<hr class="separateur">', html)
+
+
+class MotsClesTests(ArborescenceMixin, TestCase):
+    """Organisation > Mots-clés : voir, renommer et SUPPRIMER les tags."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth import get_user_model
+        admin = get_user_model().objects.create_superuser("mj", "mj@example.com", "x")
+        self.client.force_login(admin)
+
+    def test_la_liste_compte_les_fiches_de_chaque_mot_cle(self):
+        from encyclopedie.models import MotCle, MotCleViewSet
+        compte = {m.name: m.nombre_de_fiches for m in MotCleViewSet().get_queryset(None)}
+        # « Dragon » : le héros ET le lieu (tag écrit « dragon », même mot-clé)
+        self.assertEqual(compte, {"Divin": 1, "Dragon": 2})
+        reponse = self.client.get("/admin/snippets/encyclopedie/motcle/")
+        self.assertContains(reponse, "Dragon")
+
+    def test_supprimer_un_mot_cle_le_retire_de_toutes_les_fiches(self):
+        from taggit.models import Tag
+        dragon = Tag.objects.get(name="Dragon")
+        self.client.post(f"/admin/snippets/encyclopedie/motcle/delete/{dragon.pk}/")
+        self.assertFalse(Tag.objects.filter(name="Dragon").exists())
+        self.assertEqual(list(self.aldric.tags.all()), [])
+        # Et il disparaît des filtres de l'encyclopédie
+        reponse = self.client.get(self.encyclopedie.url)
+        self.assertNotContains(reponse, 'value="dragon"')
+
+    def test_le_menu_organisation_mene_aux_mots_cles(self):
+        reponse = self.client.get("/admin/")
+        self.assertContains(reponse, "/admin/snippets/encyclopedie/motcle/")
+
+    def test_les_tags_des_images_restent_caches(self):
+        # « demo-tales-omnibus » est posé sur des IMAGES pour retirer la démo :
+        # le supprimer d'ici casserait « Retirer la démo ».
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        from encyclopedie.models import MotCleViewSet
+        image = Image.objects.create(title="Carte", file=get_test_image_file())
+        image.tags.add("demo-tales-omnibus")
+        noms = [m.name for m in MotCleViewSet().get_queryset(None)]
+        self.assertNotIn("demo-tales-omnibus", noms)
+        self.assertIn("Dragon", noms)
+
+    def test_la_confirmation_dit_combien_de_fiches_le_perdent(self):
+        from taggit.models import Tag
+        dragon = Tag.objects.get(name="Dragon")
+        reponse = self.client.get(f"/admin/snippets/encyclopedie/motcle/delete/{dragon.pk}/")
+        self.assertContains(reponse, "est posé sur 2 fiches")
+        self.assertNotContains(reponse, "référencé")

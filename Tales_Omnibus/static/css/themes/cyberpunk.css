@@ -403,7 +403,7 @@ h3, h4 {
 
 /* La lettrine : un caractère géant, cerné de néon, avec un curseur de
    terminal qui clignote à côté */
-.enluminure .richtext > p:first-child::first-letter {
+.enluminure:not(.enluminure--sans-lettrine) .richtext > p:first-child::first-letter {
     margin: 0.06em 0.2em 0 0;
     padding: 0.1em 0.18em 0.05em;
     border: 2px solid var(--neon-magenta);

@@ -347,7 +347,7 @@ h3, h4 {
    ========================================================================== */
 
 /* Lettrine : tracée au feutre rouge, entourée d'un cercle griffonné */
-.enluminure .richtext > p:first-child::first-letter {
+.enluminure:not(.enluminure--sans-lettrine) .richtext > p:first-child::first-letter {
     margin: 0.04em 0.18em 0 0;
     padding: 0.1em 0.2em 0.02em;
     border: 3px solid var(--sang-lisible);

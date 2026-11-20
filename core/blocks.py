@@ -192,23 +192,31 @@ class EnluminureBlock(blocks.StructBlock):
     début du texte, et selon l'ornement choisi, une bordure dans la marge ou
     un cadre. Sans thème, la lettrine est simplement grande et colorée ; c'est
     le thème qui ajoute la feuille d'or, les rinceaux, etc.
+    La lettrine est une CASE à part : un cadre ou des rinceaux sans lettrine
+    ont aussi leur allure (encart, citation). Les valeurs d'ornement n'ont
+    pas changé (« lettrine » = aucun ornement) : les blocs existants restent
+    valides, et ceux d'avant la case gardent leur lettrine (défaut : cochée).
     """
     ORNEMENTS = [
-        ("lettrine", "Lettrine seule"),
-        ("marge", "Lettrine + rinceaux dans la marge"),
-        ("cadre", "Lettrine + page encadrée"),
+        ("lettrine", "Aucun"),
+        ("marge", "Rinceaux dans la marge"),
+        ("cadre", "Page encadrée"),
     ]
     ornement = blocks.ChoiceBlock(choices=ORNEMENTS, default="lettrine", label="Ornement")
+    lettrine = blocks.BooleanBlock(
+        required=False, default=True, label="Lettrine",
+        help_text="Décoché : pas de grande première lettre (un cadre seul, par exemple).",
+    )
     texte = blocks.RichTextBlock(
         label="Texte",
-        help_text="La première lettre du premier paragraphe devient la lettrine.",
+        help_text="Avec la lettrine, la première lettre du premier paragraphe devient la lettrine.",
         features=['bold', 'italic', 'link', 'blockquote'],
     )
 
     class Meta:
         template = "core/blocks/enluminure_block.html"
         icon = "openquote"
-        label = "Enluminure (lettrine décorée)"
+        label = "Enluminure (lettrine, rinceaux, cadre)"
 
 
 class BaseStreamBlock(blocks.StreamBlock):

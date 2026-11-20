@@ -3,15 +3,17 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from modelcluster.contrib.taggit import ClusterTaggableManager
 from modelcluster.fields import ParentalKey
-from taggit.models import Tag, TaggedItemBase
+from taggit.models import Tag, TaggedItem, TaggedItemBase
 from wagtail.admin.forms import WagtailAdminModelForm
 from wagtail.admin.panels import FieldPanel, InlinePanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Orderable, Page
 from wagtail.snippets.models import register_snippet
+from wagtail.snippets.views.snippets import DeleteView, SnippetViewSet
 
 from campagnes.models import (
     CampagnePage, CartePage, EvenementPage, HeroPage, LieuPage, arbre_geographique, ids_situes_dans,
@@ -377,6 +379,103 @@ class FamilleDeTags(models.Model):
 
     def __str__(self):
         return self.nom
+
+
+# --- MOTS-CLÉS : gérer les tags eux-mêmes (renommer, supprimer) ------------
+# Les tags de taggit se créent en tapant dans une fiche, mais Wagtail n'offre
+# aucun écran pour les renommer ou les supprimer : un tag de test ou une
+# faute de frappe restait pour toujours dans les filtres de l'encyclopédie.
+# MotCle est un modèle PROXY : la MÊME table que Tag (aucune donnée copiée),
+# mais à nous, donc avec des noms français, des droits propres et des méthodes.
+
+class MotCle(Tag):
+    class Meta:
+        proxy = True
+        verbose_name = "Mot-clé"
+        verbose_name_plural = "Mots-clés"
+        ordering = ['name']
+
+    panels = [
+        FieldPanel('name', heading="Mot-clé",
+                   help_text="Renommer ici renomme le mot-clé sur TOUTES les fiches qui le portent."),
+    ]
+
+    def famille_affichee(self):
+        familles = self.familles.all()  # préchargées par get_queryset
+        return familles[0].nom if familles else "—"
+    famille_affichee.short_description = "Famille"
+
+    def fiches_affichees(self):
+        return self.nombre_de_fiches
+    fiches_affichees.short_description = "Fiches"
+
+
+def tables_des_tags():
+    """
+    Les tables qui relient un tag à une FICHE (une par type de fiche).
+    Sans TaggedItem, la table générique de taggit : c'est celle des IMAGES
+    de Wagtail (le tag « demo-tales-omnibus » qui sert à retirer la démo).
+    """
+    return [rel.related_model for rel in Tag._meta.related_objects
+            if issubclass(rel.related_model, TaggedItemBase) and rel.related_model is not TaggedItem]
+
+
+def nombre_de_liens(tables):
+    """Expression SQL : combien de lignes de ces tables pointent vers le tag."""
+    total = Value(0)
+    for table in tables:
+        compte = (table.objects.filter(tag=OuterRef('pk')).order_by()
+                  .values('tag').annotate(n=Count('pk')).values('n'))
+        total = total + Coalesce(Subquery(compte), 0)
+    return total
+
+
+class SupprimerUnMotCle(DeleteView):
+    """
+    La confirmation dit combien de fiches PERDENT ce mot-clé. Wagtail
+    afficherait « référencé 0 fois » : son index des références ne suit pas
+    les tags, et un MJ croirait supprimer un tag inutilisé.
+    """
+
+    def get_usage_url(self):
+        return None  # pas de « référencé 0 fois » trompeur
+
+    @property
+    def confirmation_message(self):
+        n = nombre_de_fiches_du_tag(self.object)
+        if not n:
+            return f"Le mot-clé « {self.object} » n'est posé sur aucune fiche. Le supprimer ?"
+        return (f"Le mot-clé « {self.object} » est posé sur {n} fiche{'s' if n > 1 else ''} : "
+                f"il en sera retiré, et disparaîtra des filtres de l'encyclopédie. Le supprimer ?")
+
+
+def nombre_de_fiches_du_tag(tag):
+    return sum(table.objects.filter(tag=tag).count() for table in tables_des_tags())
+
+
+class MotCleViewSet(SnippetViewSet):
+    model = MotCle
+    delete_view_class = SupprimerUnMotCle
+    icon = "tag"
+    add_to_admin_menu = False  # rangé dans le menu « Organisation » (core/wagtail_hooks.py)
+    list_display = ["name", "famille_affichee", "fiches_affichees"]
+    search_fields = ["name"]
+
+    def get_queryset(self, request):
+        # Le nombre de fiches de chaque mot-clé, calculé PAR LA BASE : une
+        # sous-requête par type de fiche (héros, lieux…), additionnées.
+        # Sans ça : une requête par mot-clé et par type, à chaque affichage.
+        # Les tags qui ne servent QU'AUX IMAGES sont cachés : les supprimer
+        # d'ici casserait « Retirer la démo ». Un tag sur aucune fiche ni
+        # aucune image reste visible : c'est justement celui qu'on veut effacer.
+        return (MotCle.objects
+                .annotate(nombre_de_fiches=nombre_de_liens(tables_des_tags()),
+                          nombre_d_images=nombre_de_liens([TaggedItem]))
+                .filter(Q(nombre_de_fiches__gt=0) | Q(nombre_d_images=0))
+                .prefetch_related('familles').order_by('name'))
+
+
+register_snippet(MotCleViewSet)
 
 
 def ranger_par_famille(tags):
