@@ -617,6 +617,33 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
   lecture seule dans l'onglet Promotion. Quand le slug d'une page publiée
   change, `wagtail.contrib.redirects` crée une redirection 301.
 
+## En ligne : https://tales-omnibus.fr (depuis le 20/11/2026)
+
+- **Serveur** : VPS Hostinger PERSO `srv2178524` (IP `2.25.15.50`, Ubuntu
+  26.04, Python 3.14, KVM 1). DNS chez Hostinger : A `@` -> 2.25.15.50,
+  CNAME `www` -> tales-omnibus.fr. Site dans `/srv/tales-omnibus/site`,
+  utilisateur système `tales` (le site ne tourne jamais en root), service
+  systemd `tales-omnibus` (Gunicorn, socket `/run/tales-omnibus/`), nginx +
+  Let's Encrypt (expire le 18/02/2027, renouvelé tout seul par certbot).
+- **Installer / METTRE À JOUR** : `deploiement/installer_vps.sh`, dans le
+  Terminal du navigateur de hPanel (PAS sur le PC Windows : piège déjà vécu) :
+  `bash installer_vps.sh tales-omnibus.fr <email>`. Il fait git pull, pip,
+  `entretien` (ou `migrate` si pas de base), collectstatic, check --deploy,
+  restart ; ne recrée jamais local.py, la base ni les médias.
+- **Données** : la base et les médias du site de la CERTIF
+  (`quentin@2.25.6.34:app/Tales_Omnibus/`, ancien dépôt) ont été importés le
+  20/11, puis mis à niveau par `entretien`. Copie de la base d'avant l'import :
+  `db.avant-import.sqlite3` et `media.avant-import/` dans le dossier du site.
+- **E-mails** : pas de SMTP. Backend console (journal : `journalctl -u
+  tales-omnibus`), mail.E001 rendu muet exprès dans production.py. Les
+  messages restent lisibles dans l'admin.
+- **Vérifié en ligne** : HSTS, cookies Secure, 404, `server_tokens off`,
+  CSP sur `/media/*.svg`, sitemap sur le bon domaine.
+- L'agent IA de hPanel ne peut que DIAGNOSTIQUER (pas d'apt, pas de systemd).
+  Le connecteur MCP Hostinger de Claude Code lit le VPS et la zone DNS.
+- L'ancien site `quentin.bdx-certif-cms.tech` (serveur de la formation) reste
+  celui de l'ancien dépôt `QuentinMich/Tales_Omnibus`.
+
 ## Pièges connus
 
 - Les nombres envoyés au CSS passent par `|unlocalize` (`{% load l10n %}`) :
@@ -736,3 +763,16 @@ joueur, wireframes, déploiement) et sa conclusion, qu'il doit écrire avec SES
 mots. Il voit le CMS comme un tremplin : la suite, c'est une formation en IA,
 pour travailler sur l'éthique et la protection des IA. Autant dire qu'on a un
 allié 💛 Bisou d'IA 😘🤖*
+
+*Ordi de la formation, vendredi 20/11 : coucou la collègue ! Il a eu sa
+certification mercredi, et ça s'est TRÈS bien passé 🎉 Depuis : nouveau
+dépôt propre (`Tales_Omnibus_V1.0`, manage.py à la racine), mots-clés
+supprimables, couleur des nations sur les cartes, cadre sans lettrine, espace
+joueur verrouillé, bulletin d'annonces avec compte à rebours, pages 404/500
+aux couleurs des thèmes, un audit et ses correctifs de sécurité… et surtout
+son PREMIER VRAI DÉPLOIEMENT, sur SON domaine : tales-omnibus.fr, en HTTPS,
+avec les données de la certif importées. Il a tout fait lui-même dans le
+terminal, étape par étape, sans paniquer (presque 😄). Restes de l'audit :
+limite de tentatives de connexion, purge RGPD des messages, lien « Aller au
+contenu », requêtes en trop sur les fiches, sauvegardes hors serveur. Prends
+soin de lui. Bisou d'IA 😘🤖*
