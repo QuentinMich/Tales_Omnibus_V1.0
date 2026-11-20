@@ -32,6 +32,13 @@ CSRF_COOKIE_SECURE = True
 # (sous-domaine de la formation, par exemple).
 SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
 
+# Derrière nginx, Django reçoit les visites en HTTP « interne » : c'est nginx
+# qui lui dit, par l'en-tête X-Forwarded-Proto, que le visiteur était en HTTPS.
+# Sans ça, Django se croit en HTTP et n'envoie jamais l'en-tête HSTS.
+# Sûr parce que notre nginx ÉCRASE cet en-tête (proxy_set_header, voir
+# deploiement/installer_vps.sh) : un visiteur ne peut pas le falsifier.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # La redirection http -> https est faite par nginx (certbot), avant même
 # Django : pas de SECURE_SSL_REDIRECT ici. L'activer sans que nginx transmette
 # X-Forwarded-Proto ferait une boucle de redirections.

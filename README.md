@@ -59,6 +59,24 @@ La base de données (`db.sqlite3`) et les fichiers envoyés (`media/`) : chaque
 installation a les siens. Les réglages secrets d'un serveur vont dans
 `Tales_Omnibus/settings/local.py`, lui aussi exclu.
 
+## Mettre en ligne sur un VPS Ubuntu (deux commandes)
+
+Dans le terminal du VPS, en root :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/QuentinMich/Tales_Omnibus_V1.0/main/deploiement/installer_vps.sh -o installer_vps.sh
+```
+
+```bash
+bash installer_vps.sh mon-domaine.fr mon-adresse@email.fr
+```
+
+Le domaine doit déjà pointer vers l'adresse IP du VPS (enregistrement DNS
+**A**). Le script installe tout (utilisateur dédié, Python, Gunicorn, nginx,
+HTTPS) et affiche des vérifications à la fin. **Relancé plus tard, il met le
+site à jour** (`git pull`, dépendances, entretien, redémarrage) sans toucher à
+la base, aux médias ni à la clé secrète.
+
 ## Mise en ligne : sécurité côté serveur
 
 `Tales_Omnibus/settings/production.py` pose des réglages sûrs par défaut
