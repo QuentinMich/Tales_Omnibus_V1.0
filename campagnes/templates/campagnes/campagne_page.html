@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags l10n %}
+
+{% block body_class %}template-campagne{% endblock %}
+
+{% block content %}
+<main class="container page-campagne-detail">
+
+    {# --- EN-TÊTE : titre, sous-titre, statut (bannière en fond si présente) --- #}
+    <header class="campagne-header{% if page.banner_image %} has-banner{% endif %}">
+        {% if page.banner_image %}
+            {% image page.banner_image fill-1400x500 alt="" class="campagne-banner" %}
+        {% endif %}
+        <div class="campagne-titles">
+            <h1 class="page-title">{{ page.title }}</h1>
+            {% if page.subtitle %}
+                <p class="page-subtitle">{{ page.subtitle }}</p>
+            {% endif %}
+        </div>
+        <span class="status-badge status-{{ page.status }}">Statut : <strong>{{ page.get_status_display }}</strong></span>
+    </header>
+
+    {# --- NOS HÉROS : les personnages des joueurs, toujours sur UNE ligne --- #}
+    {# --colonnes = leur nombre (2 à 6…) : le CSS adapte la taille des cartes #}
+    {% if heros %}
+        <section class="section section-heros">
+            <h2 class="section-title">Nos Héros</h2>
+            <div class="heros-grid heros-grid--groupe" style="--colonnes: {{ heros|length|unlocalize }}">
+                {% for hero in heros %}
+                    {% include "campagnes/includes/hero_card.html" %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    {# --- COMPAGNONS DE ROUTE : les héros joués par le MJ (PNJ récurrents) --- #}
+    {% if compagnons %}
+        <section class="section section-compagnons">
+            <h2 class="section-title">Compagnons de route</h2>
+            <div class="heros-grid heros-grid--compagnons">
+                {% for hero in compagnons %}
+                    {% include "campagnes/includes/hero_card.html" %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    {# --- ANCIENS MEMBRES : une simple liste, leur fiche reste en ligne --- #}
+    {% if anciens_membres %}
+        <p class="anciens-membres">
+            <span class="anciens-membres-titre">Ont quitté le groupe :</span>
+            {% for hero in anciens_membres %}<a href="{% pageurl hero %}">{{ hero.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+        </p>
+    {% endif %}
+
+    {# --- ACCROCHE / SYNOPSIS --- #}
+    {% if page.synopsis %}
+        <section class="panel campagne-synopsis">
+            <h2 class="panel-title">Synopsis</h2>
+            <div class="richtext">{{ page.synopsis|richtext }}</div>
+        </section>
+    {% endif %}
+
+    {% if page.body %}
+        <section class="section campagne-body richtext">
+            {% include_block page.body %}
+        </section>
+    {% endif %}
+
+    {# --- ENCYCLOPÉDIE : à venir (articles liés à la campagne via les tags) --- #}
+
+    {# --- DUO : ÉVÉNEMENTS RÉCENTS + CARTE INTERACTIVE --- #}
+    {% if chronologie or carte_principale %}
+        <div class="duo-grid">
+            {% if chronologie %}
+                <section class="panel panel--rounded section-evenements">
+                    <h2 class="panel-title">Événements récents</h2>
+                    <ul class="event-snippets">
+                        {% for evt in evenements_recents %}
+                            <li>
+                                <a href="{% pageurl evt %}" class="event-snippet">
+                                    {% if evt.date_affichage %}<span class="event-snippet-date">{{ evt.date_affichage }}</span>{% endif %}
+                                    <span class="event-snippet-title">{{ evt.title }}</span>
+                                </a>
+                            </li>
+                        {% empty %}
+                            <li class="no-data">Aucun événement pour le moment.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% pageurl chronologie %}" class="btn-link">Consulter la chronologie &rarr;</a>
+                </section>
+            {% endif %}
+
+            {% if carte_principale %}
+                <section class="panel panel--rounded section-carte">
+                    <h2 class="panel-title">Carte interactive</h2>
+                    <a href="{% pageurl carte_principale %}" class="carte-preview">
+                        {% if carte_principale.main_image %}
+                            {% image carte_principale.main_image fill-700x700 alt="" loading="lazy" class="carte-preview-img" %}
+                        {% else %}
+                            <span class="img-placeholder carte-preview-img" aria-hidden="true"></span>
+                        {% endif %}
+                        <span class="carte-preview-label">{{ carte_principale.title }} &rarr;</span>
+                    </a>
+                </section>
+            {% endif %}
+        </div>
+    {% endif %}
+
+</main>
+{% endblock %}

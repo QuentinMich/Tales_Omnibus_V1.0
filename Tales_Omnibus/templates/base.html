@@ -1,0 +1,144 @@
+{% load l10n static wagtailcore_tags wagtailuserbar wagtailsettings_tags wagtailimages_tags navigation_tags seo_tags %}
+{% get_settings %}
+{% wagtail_site as current_site %}
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        {# SEO automatique (core/seo.py) : si le client laisse vides les champs   #}
+        {# « Promotion », titre et description sont générés à partir de la page. #}
+        {% seo_de_la_page as seo %}
+        <title>{% block title %}{{ seo.titre }}{% endblock %}</title>
+        {% if seo.description %}
+        <meta name="description" content="{{ seo.description }}" />
+        {% endif %}
+        {% if seo.url %}
+        <link rel="canonical" href="{{ seo.url }}" />
+        {% endif %}
+
+        {# Open Graph : l'aperçu (titre, texte, image) quand on partage un lien #}
+        {# sur Discord, Facebook, Bluesky…                                       #}
+        <meta property="og:title" content="{{ seo.titre }}" />
+        <meta property="og:type" content="{{ seo.type }}" />
+        {% if seo.description %}<meta property="og:description" content="{{ seo.description }}" />{% endif %}
+        {% if seo.url %}<meta property="og:url" content="{{ seo.url }}" />{% endif %}
+        {% if seo.image %}<meta property="og:image" content="{{ seo.image }}" />{% endif %}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {% include "core/includes/icones_onglet.html" %}
+
+        {# Force all links in the live preview panel to be opened in a new tab #}
+        {% if request.in_preview_panel %}
+        <base target="_blank">
+        {% endif %}
+
+        {# 1. Structure : mise en page + valeurs par défaut (couleurs du wireframe) #}
+        <link rel="stylesheet" href="{% static 'css/structure.css' %}">
+
+        {# 2. Thème : couleurs, polices et formes, chargé APRÈS la structure pour    #}
+        {# la surcharger. Choisi dans l'admin (Paramètres du site > Thème) ; la     #}
+        {# valeur vient d'une liste de choix, jamais d'une saisie libre.             #}
+        {% block theme_css %}
+            {% with theme=settings.core.NavigationSettings.theme %}
+                {% if theme %}
+                <link rel="stylesheet" href="{% static 'css/themes/'|add:theme|add:'.css' %}">
+                {% endif %}
+            {% endwith %}
+        {% endblock %}
+
+        {% block extra_css %}{% endblock %}
+        {% block extra_head %}{% endblock %}
+    </head>
+
+    <body class="{% block body_class %}{% endblock %}">
+        {% wagtailuserbar %}
+
+        {# Contenu AVANT le header (ex. : la grande image de l'accueil). #}
+        {# Vide sur les autres pages.                                    #}
+        {% block before_header %}{% endblock %}
+
+        <header class="site-header">
+            <a class="site-brand" href="{% pageurl current_site.root_page %}">
+                {% if settings.core.NavigationSettings.logo %}
+                    {# max- et pas fill- : le logo garde SA forme (jamais recadré, jamais rond) ; #}
+                    {# un SVG reste un SVG (Wagtail ne le convertit pas en image matricielle).  #}
+                    {% if settings.core.NavigationSettings.logo_dore %}
+                        {# Logo « doré » : l'image sert de POCHOIR (mask-image) et c'est le #}
+                        {# thème qui choisit ce qu'on voit à travers (or, néon, encre…).    #}
+                        {# |unlocalize : un SVG a des dimensions décimales, et en français  #}
+                        {# Django écrirait « 300,0 », ce qui rendrait le CSS invalide.      #}
+                        {% image settings.core.NavigationSettings.logo max-320x96 as logo_img %}
+                        <span class="site-logo-pochoir">
+                            <span class="site-logo site-logo--dore" style="--logo-url: url('{{ logo_img.url }}'); aspect-ratio: {{ logo_img.width|unlocalize }} / {{ logo_img.height|unlocalize }};"></span>
+                        </span>
+                    {% else %}
+                        {% image settings.core.NavigationSettings.logo max-320x96 alt="" class="site-logo" %}
+                    {% endif %}
+                {% else %}
+                    {# Pas de logo choisi : le monogramme Tales Omnibus (la marque de     #}
+                    {# l'outil, static/img/logo-tales-omnibus.svg), toujours en pochoir : #}
+                    {# il prend la couleur du thème. 724 / 749 = proportions du SVG.      #}
+                    <span class="site-logo-pochoir">
+                        <span class="site-logo site-logo--dore" style="--logo-url: url('{% static 'img/logo-tales-omnibus.svg' %}'); aspect-ratio: 724 / 749;"></span>
+                    </span>
+                {% endif %}
+                {# SEO : une page = un seul <h1>. Sur l'ACCUEIL, le sujet de la page, #}
+                {# c'est le site lui-même : son nom devient le <h1>. Ailleurs, c'est  #}
+                {# un simple <span> (le <h1> est le titre de la fiche, de la carte…). #}
+                {% if page.pk == current_site.root_page.pk %}
+                    <h1 class="site-name">{{ settings.core.NavigationSettings.site_name }}</h1>
+                {% else %}
+                    <span class="site-name">{{ settings.core.NavigationSettings.site_name }}</span>
+                {% endif %}
+            </a>
+
+            {# Menu à libellés fixes : voir core/templatetags/navigation_tags.py #}
+            {% main_menu %}
+
+            {# Recherche plein texte, sur toutes les pages (search/views.py).  #}
+            {# Le libellé est caché à l'écran (.sr-only) mais lu par les       #}
+            {# lecteurs d'écran ; la loupe a son propre nom (aria-label).      #}
+            <form action="{% url 'search' %}" method="get" role="search" class="site-search">
+                <label for="recherche-header" class="sr-only">Rechercher dans l'univers</label>
+                <input type="search" id="recherche-header" name="query" placeholder="Rechercher…"
+                       value="{{ search_query|default:'' }}" autocomplete="off">
+                <button type="submit" aria-label="Lancer la recherche">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                        <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                        <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </form>
+        </header>
+
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for message in messages %}
+                    <li class="flash flash-{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {# Lien retour vers la page parente : voir core/templatetags/navigation_tags.py #}
+        {# Une page peut le retirer avec {% block back_link %}{% endblock %}         #}
+        {% block back_link %}{% back_link %}{% endblock %}
+
+        {% block content %}{% endblock %}
+
+        <footer class="site-footer">
+            <p class="copyright">&copy; {% now "Y" %} {{ settings.core.NavigationSettings.site_name }} - Tous droits réservés.</p>
+            <ul class="footer-links">
+                {% slugurl "mentions-legales" as url_mentions %}
+                {% slugurl "contact" as url_contact %}
+                {% if url_mentions %}<li><a href="{{ url_mentions }}">Mentions légales</a></li>{% endif %}
+                {% if url_contact %}<li><a href="{{ url_contact }}">Contact</a></li>{% endif %}
+            </ul>
+        </footer>
+
+        <script src="{% static 'js/Tales_Omnibus.js' %}"></script>
+        {# Cliquer sur une image [data-agrandir] l'ouvre en grand (toutes les pages) #}
+        <script src="{% static 'js/agrandir.js' %}" defer></script>
+        {% block extra_js %}{% endblock %}
+        {# Mesure d'audience sans cookie : compte choisi dans Paramètres du site (voir navigation_tags) #}
+        {% statistiques_de_visite %}
+    </body>
+</html>

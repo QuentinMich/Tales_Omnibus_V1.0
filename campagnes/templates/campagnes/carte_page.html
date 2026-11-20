@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static wagtailcore_tags wagtailimages_tags l10n %}
+
+{% block body_class %}template-carte{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'campagnes/js/filtre_carte.js' %}" defer></script>
+    <script src="{% static 'campagnes/js/plein_ecran_carte.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<main class="container page-carte-detail">
+
+    <h1 class="page-title page-title--left">{{ page.title }}</h1>
+
+    {# --- CARTES RELIÉES, EN REMONTANT : « cette carte est un zoom de… » --- #}
+    {% if cartes_englobantes %}
+        <p class="carte-englobante">
+            Vue détaillée de {% include "campagnes/includes/lieu_chip.html" with lieu=page.lieu_detaille %}
+            · revenir à
+            {% for carte in cartes_englobantes %}<a href="{% pageurl carte %}" class="carte-englobante-lien">{{ carte.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+        </p>
+    {% endif %}
+
+    {# L'accroche AVANT la carte : on sait ce qu'on regarde avant de la voir. #}
+    {# Pas de titre « Accroche » : c'est un mot de l'admin, pas du lecteur.   #}
+    {% if page.intro %}
+        <div class="carte-intro richtext">{{ page.intro|richtext }}</div>
+    {% endif %}
+
+    {# --- FILTRE « AFFICHER » --- #}
+    {# Caché sans JavaScript (attribut hidden, retiré par filtre_carte.js) : #}
+    {# sans JS il ne marcherait pas, autant ne pas le montrer.              #}
+    {# Inutile s'il n'y a qu'une catégorie sur la carte.                    #}
+    {% if options_categories|length > 1 %}
+        <div class="form-group carte-filtre" data-filtre-carte hidden>
+            <label for="filtre-carte">Afficher</label>
+            <select id="filtre-carte">
+                <option value="">Tous les lieux</option>
+                {% for pk, libelle in options_categories %}
+                    <option value="{{ pk }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+            <span class="filtres-resultat" data-filtre-resultat aria-live="polite"></span>
+        </div>
+    {% endif %}
+
+    {# --- CARTE + MARQUEURS --- #}
+    {# width-1400 et pas fill-... : l'image ne doit PAS être recadrée, #}
+    {# sinon les coordonnées en % des lieux ne tombent plus au bon endroit. #}
+    {# Le cadre qui passe en PLEIN ÉCRAN : la carte AVEC ses zones et marqueurs #}
+    {# (mettre l'image seule en plein écran les perdrait). Le bouton est caché  #}
+    {# sans JavaScript et sur les navigateurs sans plein écran (iPhone).        #}
+    <div class="carte-plein-ecran" data-plein-ecran>
+    <button type="button" class="btn carte-plein-ecran-bouton" data-plein-ecran-bouton aria-pressed="false" hidden>
+        Plein écran
+    </button>
+    <div class="carte-map">
+        {% if page.main_image %}
+            {% image page.main_image width-1400 alt=page.title class="carte-map-img" %}
+        {% else %}
+            <span class="img-placeholder carte-map-img" aria-hidden="true"></span>
+        {% endif %}
+
+        {# --- LES HACHURES (no man's land…) --- #}
+        {# Un calque CSS par zone hachurée, découpé à sa forme (clip-path). #}
+        {# Sous le SVG : ce sont les polygones du SVG qui restent cliquables. #}
+        {% for apparition in zones %}
+            {% if apparition.est_hachuree %}
+                <span class="carte-hachures" aria-hidden="true" data-categories="{{ apparition.ids_categories }}"
+                      style="clip-path: {{ apparition.clip_path }};{% if apparition.categorie_affichee.couleur_effective %} --marker-color: {{ apparition.categorie_affichee.couleur_effective }};{% endif %}"></span>
+            {% endif %}
+        {% endfor %}
+
+        {# --- LES ZONES (royaumes, forêts…) --- #}
+        {# Un SVG posé sur l'image. viewBox 0 0 100 100 + preserveAspectRatio  #}
+        {# "none" : 1 unité SVG = 1 % de l'image, dans les deux sens. Les       #}
+        {# sommets en % se dessinent donc tels quels, quelle que soit la taille. #}
+        {# Les plus grandes d'abord : les petites passent au-dessus (cliquables). #}
+        {% if zones %}
+            <svg class="carte-zones" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                {% for apparition in zones %}
+                    {# tabindex -1 : au clavier, on passe par le nom de la zone (plus bas) #}
+                    {# Carte reliée : la zone ouvre la carte DÉTAILLÉE du lieu (un zoom) #}
+                    <a href="{% if apparition.carte_detaillee %}{% pageurl apparition.carte_detaillee %}{% else %}{% pageurl apparition.lieu %}{% endif %}"
+                       tabindex="-1" data-categories="{{ apparition.ids_categories }}"{% if apparition.carte_detaillee %} class="carte-zone-lien--detaillee"{% endif %}>
+                        <polygon class="{{ apparition.classes_zone }}" points="{{ apparition.points_svg }}"{% if apparition.categorie_affichee.couleur_effective %} style="--marker-color: {{ apparition.categorie_affichee.couleur_effective }};"{% endif %}>
+                            <title>{{ apparition.lieu.title }}{% if apparition.carte_detaillee %} : ouvrir la carte détaillée{% endif %}</title>
+                        </polygon>
+                    </a>
+                {% endfor %}
+            </svg>
+        {% endif %}
+
+        {# Un repère par lieu POSÉ sur cette carte (modèle Apparition) :     #}
+        {# un point = l'icône de sa catégorie, sinon une étoile ;            #}
+        {# une zone = son nom (précédé de l'icône) écrit en son centre.       #}
+        {% for apparition in apparitions %}
+            {% if apparition.est_zone %}
+                {% with icone=apparition.categorie_affichee.icone_effective %}
+                    {% if apparition.carte_detaillee %}
+                        {# Le nom mène aussi à la carte détaillée (loupe = « on zoome ») ; #}
+                        {# la fiche reste dans la liste « Lieux de cette carte ».          #}
+                        <a href="{% pageurl apparition.carte_detaillee %}" class="map-zone-nom map-zone-nom--detaillee" data-categories="{{ apparition.ids_categories }}"
+                           style="--x: {{ apparition.coord_x|unlocalize }}; --y: {{ apparition.coord_y|unlocalize }};"
+                           aria-label="{{ apparition.lieu.title }} : ouvrir la carte détaillée ({{ apparition.carte_detaillee.title }})">
+                            {% if icone %}{% image icone max-32x32 alt="" class="map-zone-icone" %}{% endif %}{{ apparition.lieu.title }}
+                            <svg class="map-zone-loupe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/></svg>
+                        </a>
+                    {% else %}
+                        <a href="{% pageurl apparition.lieu %}" class="map-zone-nom" data-categories="{{ apparition.ids_categories }}"
+                           style="--x: {{ apparition.coord_x|unlocalize }}; --y: {{ apparition.coord_y|unlocalize }};">
+                            {% if icone %}{% image icone max-32x32 alt="" class="map-zone-icone" %}{% endif %}{{ apparition.lieu.title }}
+                        </a>
+                    {% endif %}
+                {% endwith %}
+            {% elif apparition.est_placee %}
+                {% include "campagnes/includes/marqueur.html" with apparition=apparition lien=True %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    </div>
+
+    {% if page.body %}
+        <section class="section richtext">{% include_block page.body %}</section>
+    {% endif %}
+
+    {# --- LISTE DES LIEUX (accessible au clavier / lecteur d'écran) --- #}
+    {% if apparitions %}
+        <section class="section section-lieux">
+            <h2 class="section-title section-title--left">Lieux de cette carte</h2>
+            <ul class="lieux-list">
+                {% for apparition in apparitions %}
+                    <li data-categories="{{ apparition.ids_categories }}">
+                        {% include "campagnes/includes/lieu_chip.html" with lieu=apparition.lieu %}
+                        {% if apparition.carte_detaillee %}
+                            <a href="{% pageurl apparition.carte_detaillee %}" class="lieux-list-detail">carte détaillée</a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+    {# --- AUTRES CARTES DE LA CAMPAGNE --- #}
+    {% if autres_cartes %}
+        <section class="section section-autres-cartes">
+            <h2 class="section-title section-title--left">Autres cartes de la campagne</h2>
+            <div class="cards-grid">
+                {% for c in autres_cartes %}
+                    {% with carte_soeur=c.specific %}
+                        <a href="{% pageurl carte_soeur %}" class="mini-card">
+                            {% if carte_soeur.main_image %}
+                                {% image carte_soeur.main_image fill-400x240 alt="" loading="lazy" class="mini-card-img" %}
+                            {% else %}
+                                <span class="img-placeholder mini-card-img" aria-hidden="true"></span>
+                            {% endif %}
+                            <span class="mini-card-title">{{ carte_soeur.title }}</span>
+                        </a>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+</main>
+{% endblock %}

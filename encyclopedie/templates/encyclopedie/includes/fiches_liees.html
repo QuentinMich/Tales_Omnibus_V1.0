@@ -1,0 +1,24 @@
+{% load wagtailcore_tags wagtailimages_tags %}
+{# Encart de mini-cartes de fiches : "Fiches liées", "Liés à ce lieu"… (voir encyclopedie_tags.py) #}
+{% if fiches %}
+    <section class="panel panel--rounded panel--strong fiches-liees">
+        <h2 class="panel-title">{{ titre }}</h2>
+        <ul class="cards-grid">
+            {% for fiche in fiches %}
+                <li>
+                    <a href="{% pageurl fiche %}" class="mini-card fiche-typee" data-type="{{ fiche.type_cle }}"{% with style=fiche.categorie_affichee.style_couleur %}{% if style %} style="{{ style }}"{% endif %}{% endwith %}>
+                        {% if fiche.main_image %}
+                            {% image fiche.main_image fill-400x240-c50 alt="" loading="lazy" class="mini-card-img" %}
+                        {% else %}
+                            <span class="img-placeholder mini-card-img" aria-hidden="true"></span>
+                        {% endif %}
+                        <span class="mini-card-title">
+                            <span class="fiche-type">{{ fiche.categorie_affichee.nom|default:fiche.type_libelle }}</span>
+                            {{ fiche.title }}
+                        </span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+{% endif %}

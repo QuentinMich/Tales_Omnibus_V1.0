@@ -1,0 +1,19 @@
+{% extends "core/fiche_page.html" %}
+{% load encyclopedie_tags %}
+
+{% block body_class %}template-evenement{% endblock %}
+{% block fiche_classe %}page-evenement{% endblock %}
+
+{# La date, au-dessus du titre #}
+{% block fiche_surtitre %}
+    {% if page.date_affichage %}
+        <span class="badge">{{ page.date_affichage }}</span>
+    {% endif %}
+{% endblock %}
+
+{% block fiche_details %}
+    {# LE "PIN" : le lieu choisi dans l'admin, sur une carte de cette campagne si possible #}
+    {% if page.lieu.live %}
+        {% box_du_lieu page.lieu apparition_lieu "Lieu de l'événement" %}
+    {% endif %}
+{% endblock %}

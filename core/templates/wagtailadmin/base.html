@@ -1,0 +1,14 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailsettings_tags %}
+{# L'admin aux couleurs du site : le logo du site (Paramètres du site) remplace  #}
+{# l'oiseau de Wagtail en haut du menu, et l'onglet du navigateur porte le nom  #}
+{# du site. Mécanisme prévu par Wagtail : les blocs « branding_… ». Ce gabarit   #}
+{# porte le même nom que celui de Wagtail et l'ÉTEND : l'app core est avant      #}
+{# wagtail.admin dans INSTALLED_APPS, Django la trouve donc en premier.          #}
+{# Sans logo choisi : le monogramme Tales Omnibus (logo par défaut).             #}
+{% block branding_logo %}{% get_settings use_default_site=True %}{% with reglages=settings.core.NavigationSettings %}{% include "core/admin/logo.html" with logo=reglages.logo dore=reglages.logo_dore taille="max-160x160" %}{% endwith %}{% endblock %}
+
+{# L'icône d'onglet du site remplace celle de Wagtail #}
+{% block branding_favicon %}{% include "core/includes/icones_onglet.html" %}{% endblock %}
+
+{% block branding_title %}{% get_settings use_default_site=True %}{{ settings.core.NavigationSettings.site_name|default:"Wagtail" }}{% endblock %}

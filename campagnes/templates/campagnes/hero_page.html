@@ -1,0 +1,73 @@
+{% extends "core/fiche_page.html" %}
+{% load wagtailcore_tags encyclopedie_tags %}
+
+{% block body_class %}template-hero{% endblock %}
+{% block fiche_classe %}page-hero{% endblock %}
+
+{# Au-dessus du titre : qui le joue, et s'il a quitté le groupe #}
+{% block fiche_surtitre %}
+    {% if page.joue_par_le_mj %}<span class="badge">Compagnon de route · joué par le MJ</span>{% endif %}
+    {% if page.a_quitte_le_groupe %}<span class="badge">A quitté le groupe</span>{% endif %}
+{% endblock %}
+
+{% block fiche_details %}
+    {# --- CARACTÉRISTIQUES : un panneau par tableau (vide = rien) --- #}
+    {% include "core/includes/tableaux_de_stats.html" with tableaux=page.caracteristiques %}
+
+    {# --- PRÉSENTATION DU JOUEUR --- #}
+    {% if page.joueur_nom %}
+        <section class="panel joueur-section">
+            <h2 class="panel-title">Présentation du joueur</h2>
+            <p class="joueur-nom"><strong>{{ page.joueur_nom }}</strong></p>
+            {% if page.joueur_bio %}
+                <div class="richtext">{{ page.joueur_bio|richtext }}</div>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {# --- LE "PIN" : le lieu choisi dans l'admin, sur une carte de cette campagne si possible --- #}
+    {% if page.lieu_origine.live %}
+        {% box_du_lieu page.lieu_origine apparition_lieu "Lieu d'origine" %}
+    {% endif %}
+
+    {# --- RÉSEAUX DU JOUEUR --- #}
+    {% with links=page.hero_social_links.all %}
+        {% if links %}
+            <section class="panel social-section">
+                <h2 class="panel-title">Me retrouver</h2>
+                <ul class="social-links">
+                    {% for link in links %}
+                        <li>
+                            <a href="{{ link.url }}" class="social-link social-{{ link.platform }}" target="_blank" rel="noopener">
+                                {{ link.get_platform_display }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+    {% endwith %}
+
+    {# --- FORMULAIRE DE CONTACT INTÉGRÉ --- #}
+    {% if contact_form %}
+        <section class="panel panel--accent hero-contact-section">
+            <h2 class="panel-title">Contacter le joueur de {{ page.title }}</h2>
+
+            <form action="{% pageurl page %}" method="POST" class="contact-form" novalidate>
+                {% csrf_token %}
+                {{ contact_form.non_field_errors }}
+
+                {% for field in contact_form %}
+                    <div class="form-group form-group--{{ field.name }}{% if field.errors %} has-error{% endif %}">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {{ field.errors }}
+                    </div>
+                {% endfor %}
+
+                {% include "core/includes/mention_rgpd.html" with destinataire="la personne qui joue ce héros" %}
+                <button type="submit" class="btn">Envoyer</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

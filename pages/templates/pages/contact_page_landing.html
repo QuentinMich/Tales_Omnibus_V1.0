@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{# Wagtail affiche ce template après un envoi réussi du formulaire : #}
+{# c'est le nom du template de la page + "_landing".                 #}
+
+{% block body_class %}template-contact{% endblock %}
+
+{% block content %}
+<main class="container page-contact page-contact-landing">
+
+    {# Même structure que la page contact : grand panneau gris + encart ocre #}
+    <section class="panel panel--rounded">
+        <h1 class="page-title page-title--left">Message envoyé !</h1>
+
+        <div class="panel panel--accent panel--rounded richtext">
+            {% if page.thank_you_text %}
+                {{ page.thank_you_text|richtext }}
+            {% else %}
+                <p>Merci pour ton message, je te réponds dès que possible !</p>
+            {% endif %}
+
+            <a href="{% pageurl page %}" class="btn">&larr; Envoyer un autre message</a>
+        </div>
+    </section>
+
+</main>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static wagtailcore_tags wagtailimages_tags %}
+
+{% block body_class %}template-home{% endblock %}
+
+{# --- 1. ÉCRAN TITRE : image plein écran, placée AVANT le header (voir base.html) --- #}
+{#     Elle disparaît une fois dépassée : voir home/static/js/ecran_titre.js        #}
+{% block before_header %}
+    <div class="home-hero{% if not page.hero_image %} home-hero--defaut{% endif %}">
+        {% if page.hero_image %}
+            {% image page.hero_image width-1920 alt="" class="home-hero-img" %}
+        {% else %}
+            {# Pas d'image choisie : la bannière Tales Omnibus (logo/banniere_logo.py),  #}
+            {# en pochoir comme le logo par défaut. Les classes du logo doré lui donnent #}
+            {# la couleur, le reflet et l'ombre du thème ; le FOND (cuir, neige…) vient #}
+            {# de --fond-ecran-titre. Décorative : le nom du site est déjà le <h1>.     #}
+            <span class="site-logo-pochoir banniere-cadre" aria-hidden="true">
+                <span class="site-logo--dore banniere"
+                      style="--logo-url: url('{% static 'img/banniere-tales-omnibus.svg' %}');"></span>
+            </span>
+        {% endif %}
+        <a href="#contenu" class="home-hero-scroll" aria-label="Entrer sur le site">&darr;</a>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/ecran_titre.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<main class="container page-home" id="contenu">
+
+    {# --- 2. LIVE TWITCH / YOUTUBE --- #}
+    {% if page.stream_player %}
+        <section class="section home-live">
+            {% include_block page.stream_player %}
+        </section>
+    {% endif %}
+
+    {# --- 3. CAMPAGNES : les 3 premières, même carte que l'index --- #}
+    <section class="panel panel--rounded home-campagnes">
+        <div class="campagnes-grid">
+            {% for campagne in campagnes %}
+                {% include "campagnes/includes/campagne_card.html" with c=campagne %}
+            {% empty %}
+                <p class="no-data">Aucune campagne publiée pour le moment.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# --- 4. UNIVERS : accroche (ou intro de la page Univers) + lien --- #}
+    {% if univers %}
+        <section class="panel panel--rounded panel--strong home-univers">
+            <h2 class="panel-title">{{ univers.title }}</h2>
+            <p>{{ page.univers_accroche|default:univers.intro|linebreaksbr }}</p>
+            <a href="{% pageurl univers %}" class="btn">Découvrir l'univers</a>
+        </section>
+    {% endif %}
+
+    {# --- 5. DUO : Encyclopédie (3 fiches choisies) + Contact --- #}
+    <div class="duo-grid">
+        <section class="panel panel--rounded panel--strong home-encyclopedie">
+            <h2 class="panel-title">Encyclopédie</h2>
+            <ul class="link-tiles">
+                {% for fiche in fiches_a_la_une %}
+                    <li><a href="{% pageurl fiche %}" class="link-tile">{{ fiche.title }}</a></li>
+                {% empty %}
+                    <li class="no-data">Aucune fiche mise en avant.</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        {% with contact=page.page_contact.specific %}
+            {% if contact %}
+                <section class="panel panel--rounded panel--strong home-contact">
+                    <h2 class="panel-title">{{ contact.title }}</h2>
+                    <div class="panel panel--accent panel--rounded richtext">
+                        {{ contact.intro|richtext }}
+                        {% if prestations %}
+                            {# Version courte : titres + prix, le détail est sur la page Contact #}
+                            {% include "pages/includes/prestations.html" with prestations=prestations %}
+                        {% endif %}
+                        <a href="{% pageurl contact %}" class="btn">Me contacter</a>
+                    </div>
+                </section>
+            {% endif %}
+        {% endwith %}
+    </div>
+
+</main>
+{% endblock %}

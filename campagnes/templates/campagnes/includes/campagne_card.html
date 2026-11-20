@@ -1,0 +1,33 @@
+{% load wagtailcore_tags wagtailimages_tags %}
+{# Carte d'une campagne, partagée par l'index des campagnes et l'accueil. #}
+{# Utilisation : {% include "campagnes/includes/campagne_card.html" with c=campagne.specific %} #}
+<article class="campagne-card status-{{ c.status|default:'en_cours' }}">
+    <a href="{% pageurl c %}" class="card-link">
+        <div class="card-image-wrapper">
+            {% if c.banner_image %}
+                {% image c.banner_image fill-600x350 alt="" loading="lazy" class="card-img" %}
+            {% else %}
+                <div class="placeholder-img"></div>
+            {% endif %}
+
+            {% if c.get_status_display %}
+                {# La classe du statut sur le badge : chaque thème lui donne son voyant #}
+                <span class="status-badge status-{{ c.status|default:'en_cours' }}">{{ c.get_status_display }}</span>
+            {% endif %}
+        </div>
+
+        <div class="card-content">
+            <h2>{{ c.title }}</h2>
+
+            {% if c.subtitle %}
+                <span class="badge-subtitle">{{ c.subtitle }}</span>
+            {% endif %}
+
+            {% if c.card_description %}
+                <p class="description">{{ c.card_description }}</p>
+            {% endif %}
+
+            <span class="btn-discover">Voir la campagne &rarr;</span>
+        </div>
+    </a>
+</article>

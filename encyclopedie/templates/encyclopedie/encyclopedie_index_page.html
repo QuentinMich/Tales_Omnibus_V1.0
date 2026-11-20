@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load static wagtailcore_tags wagtailimages_tags %}
+
+{% block body_class %}template-encyclopedie{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/filtres_auto.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<main class="container page-encyclopedie">
+
+    {# --- 1. BANDEAU : grande image horizontale (wireframe) --- #}
+    {% if page.bandeau %}
+        {% image page.bandeau fill-1400x320 alt="" class="bandeau" %}
+    {% endif %}
+
+    {# --- 2. ACCROCHE : le titre de la page + le texte du client --- #}
+    <section class="panel">
+        <h1 class="panel-title">{{ page.title }}</h1>
+        {% if page.intro %}
+            <div class="richtext">{{ page.intro|richtext }}</div>
+        {% endif %}
+    </section>
+
+    {# --- 3. FILTRES + ILLUSTRATION : même grille que le haut des fiches --- #}
+    {#     Formulaire en GET : les filtres s'écrivent dans l'URL               #}
+    {#     (?campagne=…&type=…&tag=…), donc une recherche se partage.         #}
+    <div class="fiche-top">
+        <form method="get" class="fiche-card filtres" data-filtres-auto>
+            <h2 class="filtres-titre">Filtres disponibles</h2>
+
+            <div class="form-group">
+                <label for="filtre-campagne">Par campagne</label>
+                <select name="campagne" id="filtre-campagne">
+                    <option value="">Toutes les campagnes</option>
+                    {% for campagne in campagnes %}
+                        <option value="{{ campagne.pk }}"{% if campagne == campagne_choisie %} selected{% endif %}>{{ campagne.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Le vocabulaire du VISITEUR (Personnage › PNJ), pas celui de l'admin #}
+            {# (types de pages). Choisir une catégorie inclut toute sa branche.  #}
+            {% if options_categories %}
+                <div class="form-group">
+                    <label for="filtre-categorie">Par catégorie</label>
+                    <select name="categorie" id="filtre-categorie">
+                        <option value="">Toutes les catégories</option>
+                        {% for pk, libelle in options_categories %}
+                            <option value="{{ pk }}"{% if pk == categorie_choisie.pk %} selected{% endif %}>{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+            {# Filtre GÉOGRAPHIQUE : « tout ce qui est dans Ardenn » (lieux, héros #}
+            {# qui en sont originaires, événements qui s'y sont passés). Indenté   #}
+            {# comme un sommaire : Ardenn › Bois des Murmures.                     #}
+            {% if options_lieux %}
+                <div class="form-group">
+                    <label for="filtre-lieu">Par lieu</label>
+                    <select name="lieu" id="filtre-lieu">
+                        <option value="">Partout</option>
+                        {% for pk, libelle in options_lieux %}
+                            <option value="{{ pk }}"{% if pk == lieu_choisi.pk %} selected{% endif %}>{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+            {# Ancien filtre par type de page : gardé caché pour les liens existants #}
+            {% if type_choisi %}<input type="hidden" name="type" value="{{ type_choisi }}">{% endif %}
+
+            {# Les tags sont des boutons radio déguisés en pastilles : un seul tag  #}
+            {# à la fois, et ça marche même sans JavaScript. Ils sont regroupés     #}
+            {# par famille (snippet « Familles de tags »), dans l'ordre choisi.    #}
+            {% if groupes_de_tags %}
+                <fieldset class="filtres-tags">
+                    {# « Par mot-clé » et pas « Par catégorie (tags) » : deux filtres nommés #}
+                    {# « Par catégorie » semaient le doute (retour d'un relecteur)          #}
+                    <legend>Par mot-clé</legend>
+                    <ul class="tags-list">
+                        <li>
+                            <label class="tag tag--choix">
+                                <input type="radio" name="tag" value=""{% if not tag_choisi %} checked{% endif %}>
+                                Tous
+                            </label>
+                        </li>
+                    </ul>
+                    {% for groupe in groupes_de_tags %}
+                        <div class="famille-tags">
+                            <p class="famille-tags-nom">
+                                {% if groupe.famille %}{% include "core/includes/tag_marque.html" with famille=groupe.famille %}{{ groupe.famille.nom }}{% else %}Autres{% endif %}
+                            </p>
+                            <ul class="tags-list">
+                                {% for tag in groupe.tags %}
+                                    <li>
+                                        <label class="tag tag--choix">
+                                            <input type="radio" name="tag" value="{{ tag.slug }}"{% if tag.slug == tag_choisi %} checked{% endif %}>
+                                            {% include "core/includes/tag_marque.html" with famille=tag.famille %}{{ tag.name }}
+                                        </label>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </fieldset>
+            {% endif %}
+
+            <div class="filtres-actions">
+                <button type="submit" class="btn">Filtrer</button>
+                {% if campagne_choisie or categorie_choisie or lieu_choisi or tag_choisi or type_choisi %}
+                    <a href="{% pageurl page %}" class="btn-link">Effacer les filtres</a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if page.illustration %}
+            <figure class="fiche-media">
+                {% image page.illustration fill-600x850 alt="" %}
+            </figure>
+        {% endif %}
+    </div>
+
+    {# --- 4. LES FICHES : même composant que la frise de la chronologie --- #}
+    {#     (image à gauche puis à droite, carte foncée au titre jaune)     #}
+    <p class="filtres-resultat" role="status">
+        {{ fiches.paginator.count }} fiche{{ fiches.paginator.count|pluralize }}
+        {% if fiches.paginator.num_pages > 1 %}· page {{ fiches.number }} sur {{ fiches.paginator.num_pages }}{% endif %}
+    </p>
+
+    {% if fiches %}
+        <ul class="timeline">
+            {% for fiche in fiches %}
+                {# data-type : chaque type de fiche a sa couleur (section 11 du CSS) #}
+                {# Couleur : celle de la catégorie si elle en a une, sinon celle du type (data-type) #}
+                <li class="timeline-item fiche-typee{% if fiche.epinglee %} is-epinglee{% endif %}" data-type="{{ fiche.type_cle }}"{% with style=fiche.categorie_affichee.style_couleur %}{% if style %} style="{{ style }}"{% endif %}{% endwith %}>
+                    <a href="{% pageurl fiche %}" class="timeline-media" tabindex="-1" aria-hidden="true">
+                        {% if fiche.main_image %}
+                            {% image fiche.main_image fill-300x240-c50 alt="" loading="lazy" class="timeline-img" %}
+                        {% else %}
+                            <span class="img-placeholder timeline-img"></span>
+                        {% endif %}
+                    </a>
+                    <div class="timeline-card">
+                        <span class="fiche-type">{{ fiche.categorie_affichee.nom|default:fiche.type_libelle }}</span>
+                        {% if fiche.epinglee %}<span class="fiche-epingle">Épinglée</span>{% endif %}
+                        <h2 class="timeline-title"><a href="{% pageurl fiche %}">{{ fiche.title }}</a></h2>
+                        {% if fiche.intro %}
+                            <div class="timeline-summary">{{ fiche.intro|richtext|truncatewords_html:25 }}</div>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+
+        {# --- PAGINATION : {% querystring %} garde les filtres de l'URL et ne change que "page" --- #}
+        {% if fiches.has_other_pages %}
+            <nav class="pagination" aria-label="Pages de l'encyclopédie">
+                {% if fiches.has_previous %}
+                    <a href="{% querystring page=fiches.previous_page_number %}" class="btn">&larr; Précédentes</a>
+                {% endif %}
+                <span class="pagination-info">{{ fiches.number }} / {{ fiches.paginator.num_pages }}</span>
+                {% if fiches.has_next %}
+                    <a href="{% querystring page=fiches.next_page_number %}" class="btn">Suivantes &rarr;</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <p class="no-data">Aucune fiche ne correspond à ces filtres.</p>
+    {% endif %}
+
+</main>
+{% endblock %}

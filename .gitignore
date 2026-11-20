@@ -1,0 +1,41 @@
+# .gitignore de Tales Omnibus : le SITE seul, projet Django à la racine.
+# Principe : on versionne le CODE, jamais les DONNÉES d'une installation
+# (base, images envoyées) ni les secrets d'un serveur.
+
+# --- Données d'une installation (chaque ordinateur, chaque serveur a les siennes)
+# La base de données (contenu, comptes, mots de passe hachés)
+*.sqlite3
+*.sqlite3-journal
+# Les fichiers envoyés depuis l'admin (images, documents) et leurs vignettes
+/media/
+# Les copies de la base faites par « manage.py entretien »
+/sauvegardes/
+# Les fichiers statiques REGROUPÉS par « manage.py collectstatic » (STATIC_ROOT).
+# Le « / » devant : seulement ce dossier-là, pas les static/ des apps ni
+# Tales_Omnibus/static/ (thèmes, polices, logo), qui SONT du code.
+/static/
+
+# --- Secrets et réglages propres à un serveur ------------------------------
+# Réglages de production propres au serveur (clé secrète, domaines…),
+# importés par settings/production.py
+/Tales_Omnibus/settings/local.py
+.env
+.env.*
+
+# --- Environnement Python ---------------------------------------------------
+env/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# --- Outils, systèmes, éditeurs ----------------------------------------------
+# Config locale de Claude Code (serveur de preview)
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+.coverage
+htmlcov/
