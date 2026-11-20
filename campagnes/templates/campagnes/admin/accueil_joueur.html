@@ -1,0 +1,16 @@
+{# Accueil de l'admin pour un joueur (campagnes/wagtail_hooks.AccueilDuJoueur). #}
+<section class="panel accueil-joueur">
+    <h2>Bienvenue dans ton espace</h2>
+    {% if fiches %}
+        <p>Tu peux modifier {% if fiches|length > 1 %}tes fiches{% else %}ta fiche{% endif %} : portrait, histoire, caractéristiques, réseaux. Pense à <strong>Publier</strong> pour que ça apparaisse sur le site.</p>
+        <p>
+            {% for fiche in fiches %}
+                <a class="button" href="{% url 'wagtailadmin_pages:edit' fiche.pk %}">Modifier {{ fiche.title }}</a>
+            {% endfor %}
+        </p>
+    {% endif %}
+    <p>
+        <a class="button button-secondary" href="{% url 'mes_messages' %}">Mes messages{% if non_lus %} ({{ non_lus }} non lu{{ non_lus|pluralize }}){% endif %}</a>
+    </p>
+</section>
+<style>.accueil-joueur { padding: 1.5rem; } .accueil-joueur .button { margin: 0 0.5rem 0.5rem 0; }</style>

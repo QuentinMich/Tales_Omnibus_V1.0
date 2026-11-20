@@ -98,3 +98,33 @@ def retirer_l_acces(hero):
     groupe.delete()
     for ancien in anciens:
         quitter_les_joueurs_si_plus_de_fiche(ancien, sauf=hero)
+
+
+# --- L'ADMIN D'UN JOUEUR : « Ma fiche » et « Mes messages », rien d'autre ---
+# Les DROITS protègent déjà tout le reste (un joueur n'a le droit de modifier
+# que sa fiche). Ce qui suit range l'admin pour qu'il ne voie QUE ce qui le
+# concerne : moins de menus, moins d'accidents, moins de questions.
+
+def est_un_joueur(utilisateur):
+    """
+    Un compte qui n'est QUE joueur : groupe « Joueurs » et ses groupes de
+    fiche, rien d'autre. Un administrateur, ou un co-MJ qui a d'autres
+    groupes, garde l'admin complète, même s'il joue aussi un héros.
+    """
+    if not utilisateur.is_authenticated or utilisateur.is_superuser:
+        return False
+    groupes = list(utilisateur.groups.values_list('name', flat=True))
+    return (GROUPE_DES_JOUEURS in groupes
+            and all(nom == GROUPE_DES_JOUEURS or nom.startswith(PREFIXE_GROUPE_FICHE) for nom in groupes))
+
+
+def fiches_du_joueur(utilisateur):
+    from campagnes.models import HeroPage
+    return HeroPage.objects.filter(compte_joueur=utilisateur).order_by('title')
+
+
+def messages_visibles_par(utilisateur):
+    """Le joueur : les messages de SES héros. Un administrateur : tous."""
+    from campagnes.models import MessageAuHeros
+    messages = MessageAuHeros.objects.select_related('hero')
+    return messages if utilisateur.is_superuser else messages.filter(hero__compte_joueur=utilisateur)

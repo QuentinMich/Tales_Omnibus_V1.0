@@ -923,8 +923,11 @@ class HeroPage(FicheEncyclopedieMixin, BaseFichePage):
 
     @property
     def contact_actif(self):
-        """Le formulaire n'a de sens que si on sait à qui envoyer le message."""
-        return self.enable_contact and bool(self.joueur_email)
+        """
+        Le formulaire n'a de sens que si quelqu'un lira le message : un e-mail
+        de joueur, ou un compte joueur (il le lira dans « Mes messages »).
+        """
+        return self.enable_contact and bool(self.joueur_email or self.compte_joueur_id)
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
@@ -955,6 +958,12 @@ class HeroPage(FicheEncyclopedieMixin, BaseFichePage):
 
     def envoyer_message(self, data):
         raison = dict(HeroContactForm.base_fields['raison'].choices).get(data['raison'], data['raison'])
+        # Le message est d'abord GARDÉ : le joueur le lit dans son espace de
+        # l'admin (« Mes messages »), même si le serveur n'envoie pas d'e-mail.
+        MessageAuHeros.objects.create(hero=self, nom=data['nom'], email=data['email'],
+                                      raison=raison, message=data['message'])
+        if not self.joueur_email:
+            return
         EmailMessage(
             subject=f"[{self.title}] {raison} - de {data['nom']}",
             body=(
@@ -967,3 +976,29 @@ class HeroPage(FicheEncyclopedieMixin, BaseFichePage):
             to=[self.joueur_email],
             reply_to=[data['email']],  # le joueur peut répondre directement au visiteur
         ).send()
+
+
+class MessageAuHeros(models.Model):
+    """
+    Un message laissé par un visiteur sur la fiche d'un héros. Il est GARDÉ
+    ici (et envoyé par e-mail si le joueur en a donné un) : le joueur le lit
+    dans son espace de l'admin, « Mes messages », puis le supprime.
+    Données personnelles (nom, e-mail) : seuls le joueur du héros et les
+    administrateurs les voient ; supprimer la fiche supprime ses messages.
+    """
+    hero = models.ForeignKey(HeroPage, on_delete=models.CASCADE, related_name='messages_recus',
+                             verbose_name="Héros")
+    nom = models.CharField(max_length=100, verbose_name="Nom")
+    email = models.EmailField(verbose_name="E-mail")
+    raison = models.CharField(max_length=100, verbose_name="Raison")
+    message = models.TextField(verbose_name="Message")
+    recu_le = models.DateTimeField(auto_now_add=True, verbose_name="Reçu le")
+    lu = models.BooleanField(default=False, verbose_name="Lu")
+
+    class Meta:
+        ordering = ['-recu_le']
+        verbose_name = "Message au héros"
+        verbose_name_plural = "Messages aux héros"
+
+    def __str__(self):
+        return f"{self.nom} → {self.hero.title}"

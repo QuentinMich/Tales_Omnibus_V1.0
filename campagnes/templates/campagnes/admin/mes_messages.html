@@ -1,0 +1,51 @@
+{% extends "wagtailadmin/base.html" %}
+{# « Mes messages » (campagnes/admin_joueur.py) : les messages des visiteurs aux héros. #}
+
+{% block titletag %}Mes messages{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title="Mes messages" icon="mail" %}
+
+    <div class="nice-padding messages-heros">
+        {% if tous_les_heros %}
+            <p class="help-block">Administrateur : tu vois les messages de tous les héros. Un joueur ne voit que ceux de ses héros.</p>
+        {% endif %}
+
+        {% for message in liste %}
+            <article class="message-heros{% if message.pk in nouveaux %} message-heros--nouveau{% endif %}">
+                <header>
+                    <h2>
+                        {% if message.pk in nouveaux %}<span class="status-tag primary">Nouveau</span>{% endif %}
+                        {{ message.raison }} · de {{ message.nom }}
+                    </h2>
+                    <p class="message-heros-infos">
+                        Pour {{ message.hero.title }} · reçu le {{ message.recu_le|date:"j F Y à H:i" }}
+                    </p>
+                </header>
+                <p class="message-heros-texte">{{ message.message|linebreaksbr }}</p>
+                <div class="message-heros-actions">
+                    {# Répondre = le logiciel de mail du joueur : son adresse reste privée jusqu'à ce qu'il réponde #}
+                    <a class="button" href="mailto:{{ message.email }}?subject={{ 'Re : '|add:message.raison|urlencode }}">Répondre à {{ message.email }}</a>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" name="supprimer" value="{{ message.pk }}" class="button button-secondary no">Supprimer</button>
+                    </form>
+                </div>
+            </article>
+        {% empty %}
+            <p>Aucun message pour l'instant. Quand un visiteur écrira au héros depuis sa fiche
+               (formulaire de contact activé), son message arrivera ici.</p>
+        {% endfor %}
+    </div>
+
+    <style>
+        .messages-heros { display: grid; gap: 1.5rem; max-width: 50rem; }
+        .message-heros { padding: 1.25rem; border: 1px solid var(--w-color-border-furniture); border-radius: 0.5rem; }
+        .message-heros--nouveau { border-color: var(--w-color-secondary); border-width: 2px; }
+        .message-heros h2 { margin: 0; font-size: 1.15rem; }
+        .message-heros .status-tag { margin-right: 0.5rem; padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.8rem; color: #fff; background: var(--w-color-secondary); }
+        .message-heros-infos { margin: 0.25rem 0 0; color: var(--w-color-text-meta); }
+        .message-heros-texte { margin: 1rem 0; white-space: normal; }
+        .message-heros-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+    </style>
+{% endblock %}

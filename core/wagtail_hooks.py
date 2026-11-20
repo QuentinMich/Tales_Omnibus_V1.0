@@ -116,11 +116,38 @@ def sous_menu(libelle, nom, icone, ordre, entrees):
                            icon_name=icone, order=ordre)
 
 
+def menu_du_joueur(request):
+    """
+    Le menu d'un joueur : sa fiche (ou ses fiches) et ses messages.
+    Les droits le protégeaient déjà ; ce menu lui évite de se perdre dans
+    des écrans où il ne peut rien faire (moins d'accidents, moins de questions).
+    Son compte (mot de passe, avatar) reste en bas du menu, comme pour tous.
+    """
+    from campagnes.joueurs import fiches_du_joueur, messages_visibles_par
+    fiches = list(fiches_du_joueur(request.user))
+    entrees = [
+        MenuItem("Ma fiche" if len(fiches) == 1 else f"Fiche : {fiche.title}",
+                 reverse("wagtailadmin_pages:edit", args=[fiche.pk]),
+                 name=f"ma-fiche-{fiche.pk}", icon_name="user", order=10 + i)
+        for i, fiche in enumerate(fiches)
+    ]
+    non_lus = messages_visibles_par(request.user).filter(lu=False).count()
+    entrees.append(MenuItem(f"Mes messages ({non_lus})" if non_lus else "Mes messages",
+                            reverse("mes_messages"), name="mes-messages", icon_name="mail", order=100))
+    return entrees
+
+
 @hooks.register("construct_main_menu")
 def organiser_le_menu(request, menu_items):
     from core.models import Categorie
+    from campagnes.joueurs import est_un_joueur
     from encyclopedie.models import FamilleDeTags, MotCle
     from pages.models import Prestation
+
+    # Un compte qui n'est QUE joueur : son menu à lui, et rien d'autre
+    if est_un_joueur(request.user):
+        menu_items[:] = menu_du_joueur(request)
+        return
 
     principal = {entree.name: entree for entree in menu_items}
     # Les entrées du sous-menu « Paramètres » de Wagtail, si la personne a le
@@ -145,6 +172,8 @@ def organiser_le_menu(request, menu_items):
             LienVersUnFragment("Prestations", Prestation, icon_name="pick"),
         ]),
         depuis(principal, "forms", "Messages", 600, "mail"),
+        MenuReserveAuxAdministrateurs("Messages aux héros", reverse("mes_messages"), name="messages-heros",
+                                      icon_name="mail", order=610),
         sous_menu("Comptes", "comptes", "group", 700, [
             depuis(reglages, "users", "Utilisateurs", 1),
             depuis(reglages, "groups", "Groupes", 2),

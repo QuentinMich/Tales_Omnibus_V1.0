@@ -764,3 +764,102 @@ class CouleurDuLieuTests(TestCase):
         html = self.client.get(carte.url).content.decode()
         self.assertIn("--marker-color: #7A1C1C", html)
         self.assertIn("--marker-color: #3B6EA2", html)
+
+
+class EspaceDuJoueurTests(CampagneTreeMixin, TestCase):
+    """L'admin d'un joueur : « Ma fiche » et « Mes messages », rien d'autre."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth import get_user_model
+        Utilisateur = get_user_model()
+        self.zoe = Utilisateur.objects.create_user("zoe", "zoe@example.com", "x")
+        self.tom = Utilisateur.objects.create_user("tom", "tom@example.com", "x")
+        self.mj = Utilisateur.objects.create_superuser("mj", "mj@example.com", "x")
+        self.brann = self.campagne.add_child(instance=HeroPage(title="Brann", joueur_nom="Zoé", enable_contact=True))
+        self.pip = self.campagne.add_child(instance=HeroPage(title="Pip", joueur_nom="Tom", enable_contact=True))
+        for hero, compte in ((self.brann, self.zoe), (self.pip, self.tom)):
+            hero.compte_joueur = compte
+            hero.save_revision().publish()
+
+    def ecrire(self, hero, message="Ta hache est magnifique."):
+        return self.client.post(hero.url, {'nom': "Alice", 'email': "alice@example.com",
+                                           'raison': 'rp', 'message': message}, follow=True)
+
+    def test_un_compte_avec_juste_un_compte_joueur_suffit_pour_le_formulaire(self):
+        # Pas d'e-mail de joueur : le message est quand même GARDÉ pour lui
+        from campagnes.models import MessageAuHeros
+        self.assertContains(self.ecrire(self.brann), "bien été envoyé")
+        self.assertEqual(MessageAuHeros.objects.get().hero, self.brann)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_le_menu_du_joueur(self):
+        from django.urls import reverse
+        self.ecrire(self.brann)
+        self.client.force_login(self.zoe)
+        html = self.client.get(reverse("wagtailadmin_home")).content.decode()
+        self.assertIn("Bienvenue dans ton espace", html)
+        # Le menu EXACT : rien d'autre que sa fiche et ses messages
+        self.assertEqual(self.menu_pour(self.zoe), ["Ma fiche", "Mes messages (1)"])
+
+    def menu_pour(self, utilisateur):
+        from django.test import RequestFactory
+        from wagtail.admin.menu import admin_menu
+        requete = RequestFactory().get("/admin/")
+        requete.user = utilisateur
+        return [e.label for e in sorted(admin_menu.menu_items_for_request(requete), key=lambda e: e.order)]
+
+    def test_le_joueur_n_a_acces_a_rien_d_autre(self):
+        from django.urls import reverse
+        self.client.force_login(self.zoe)
+        for adresse in ("/admin/users/", "/admin/groups/", "/admin/snippets/core/categorie/",
+                        "/admin/entretien/", "/admin/bien-demarrer/", "/admin/settings/core/navigationsettings/",
+                        reverse("wagtailadmin_pages:edit", args=[self.pip.pk])):
+            self.assertNotEqual(self.client.get(adresse).status_code, 200, adresse)
+
+    def test_chacun_ses_messages(self):
+        from campagnes.models import MessageAuHeros
+        self.ecrire(self.brann, "Pour Brann")
+        self.ecrire(self.pip, "Pour Pip")
+        self.client.force_login(self.zoe)
+        page = self.client.get("/admin/mes-messages/")
+        self.assertContains(page, "Pour Brann")
+        self.assertNotContains(page, "Pour Pip")
+        self.assertTrue(MessageAuHeros.objects.get(hero=self.brann).lu)   # affiché = lu
+        self.assertFalse(MessageAuHeros.objects.get(hero=self.pip).lu)
+        # Supprimer le message de Tom en changeant le numéro : refusé
+        celui_de_tom = MessageAuHeros.objects.get(hero=self.pip)
+        self.assertEqual(self.client.post("/admin/mes-messages/", {'supprimer': celui_de_tom.pk}).status_code, 404)
+        self.client.post("/admin/mes-messages/", {'supprimer': MessageAuHeros.objects.get(hero=self.brann).pk})
+        self.assertEqual(list(MessageAuHeros.objects.values_list('message', flat=True)), ["Pour Pip"])
+
+    def test_le_mj_garde_toute_l_admin_et_voit_tous_les_messages(self):
+        self.ecrire(self.brann, "Pour Brann")
+        self.ecrire(self.pip, "Pour Pip")
+        self.client.force_login(self.mj)
+        menu = self.menu_pour(self.mj)
+        self.assertIn("Plan du site", menu)
+        self.assertIn("Messages aux héros", menu)
+        page = self.client.get("/admin/mes-messages/")
+        self.assertContains(page, "Pour Brann")
+        self.assertContains(page, "Pour Pip")
+
+    def test_un_visiteur_connecte_sans_groupe_n_a_pas_de_messages(self):
+        from django.contrib.auth import get_user_model
+        intrus = get_user_model().objects.create_user("intrus", "i@example.com", "x")
+        self.client.force_login(intrus)
+        self.assertNotEqual(self.client.get("/admin/mes-messages/").status_code, 200)
+
+    def test_la_recherche_de_l_admin_ne_devoile_pas_les_brouillons(self):
+        # Un brouillon secret du MJ : son titre ne doit pas fuiter chez un joueur
+        self.campagne.add_child(instance=HeroPage(title="Traître secret", joueur_nom="MJ", live=False))
+        self.client.force_login(self.zoe)
+        for adresse in ("/admin/pages/search/?q=secret", "/admin/pages/", "/admin/images/", "/admin/documents/"):
+            reponse = self.client.get(adresse)
+            self.assertRedirects(reponse, "/admin/", fetch_redirect_response=False, msg_prefix=adresse)
+        accueil = self.client.get("/admin/")
+        self.assertNotContains(accueil, "Traître secret")
+        self.assertNotContains(accueil, 'role="search"')  # pas de recherche sur son accueil
+        # Le MJ, lui, garde sa recherche
+        self.client.force_login(self.mj)
+        self.assertContains(self.client.get("/admin/pages/search/?q=secret"), "Traître secret")

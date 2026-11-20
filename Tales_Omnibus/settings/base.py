@@ -67,6 +67,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
     "core.middleware.SvgSansScriptMiddleware",
+    "campagnes.middleware.EspaceDuJoueurMiddleware",  # un joueur ne voit pas les listes du site
 ]
 
 ROOT_URLCONF = "Tales_Omnibus.urls"

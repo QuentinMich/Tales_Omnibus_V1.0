@@ -105,6 +105,28 @@ redémarrer `runserver` si un fichier de templatetags est arrivé.
     `publish_page` sur CETTE page (Wagtail ne donne des droits de page qu'à
     des groupes). Retirer le compte ou supprimer la fiche retire l'accès
     (`pre_delete` : la fiche est encore en base, d'où `sauf=hero`).
+  - **Espace du joueur** (admin réduite) : `est_un_joueur(user)` = groupe
+    « Joueurs » + groupes de fiche, RIEN d'autre (un superuser ou un co-MJ
+    avec d'autres groupes garde l'admin complète). Pour lui :
+    menu « Ma fiche » + « Mes messages (n) » (`menu_du_joueur`,
+    core/wagtail_hooks.py) ; accueil = panneau `AccueilDuJoueur`, sans
+    résumé du site ni recherche (`core/templates/wagtailadmin/home.html`,
+    hooks `construct_homepage_*` en `order=1000`, APRÈS ceux de Wagtail) ;
+    recherche de la barre latérale cachée (CSS dans le bloc
+    `branding_favicon` de base.html, le seul dans le `<head>`).
+    `campagnes/middleware.EspaceDuJoueurMiddleware` renvoie à l'accueil la
+    recherche de l'admin, l'explorateur, la médiathèque et les documents :
+    la recherche montrait les titres des BROUILLONS du MJ (spoilers).
+    Les sélecteurs (image, page) restent permis. Limite connue : le
+    sélecteur de page du « Lieu d'origine » liste aussi les lieux en brouillon.
+  - **Messages aux héros** (`MessageAuHeros`, migration campagnes 0029) :
+    le formulaire de la fiche GARDE le message en base (et l'envoie par
+    e-mail si `joueur_email`). `contact_actif` = case cochée ET (e-mail OU
+    compte joueur). Vue `campagnes/admin_joueur.mes_messages`
+    (`/admin/mes-messages/`) : le joueur voit ceux de SES héros, le
+    superuser tous (menu « Messages aux héros ») ; affiché = lu ;
+    suppression en POST, cherchée DANS les messages visibles (404 sinon).
+    Mentions légales mises à jour (espace personnel, suppression).
 - **Encyclopédie** (`EncyclopedieIndexPage.get_context`) : rassemble les fiches
   Héros, Lieux, Événements et Lore publiées, filtrables en GET
   (`?campagne=<id>&categorie=<id>&tag=<slug>`). Une fiche appartient à une
